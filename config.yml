@@ -1,0 +1,20 @@
+
+clip_samples:
+  A_rep1:  {r1: "A_r1", r2: "A_r2"}
+
+control_samples:
+  C_rep1:  {r1: "C_r1", r2: "C_r2"}
+
+sample_data_dir: "test_data"
+
+fastqc_first_outdir:  "fastqc_first"
+cutadapt_outdir:  "cutadapt"
+trim_galore_outdir: "trim_galore"
+mapping_outdir: "mapping"
+preprocessing_for_umi_outdir: "preprocessing_for_umi"
+deduplication_outdir: "deduplication"
+fastqc_second_outdir:  "fastqc_second"
+peakcalling_outdir:  "peakcalling"
+post_processing_outdir: "post_processing"
+motif_detection_outdir: "motif_detection"
+motif_search_outdir: "motif_search"
