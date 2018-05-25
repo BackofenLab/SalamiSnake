@@ -3,7 +3,8 @@ import math
 
 configfile: "config.yml"
 
-REF_MAPPING="genomes/hg19"
+# REF_GENOME_DIR="/scratch/bi01/heylf/genomes/hg19"
+REF_GENOME_DIR="genomes/hg19"
 
 ###############
 ## FUNCTIONS ##
@@ -58,9 +59,11 @@ FASTQC_FIRST_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_first_out
 CUTADAPT_OUTDIR = config['sample_data_dir'] + "/" + config['cutadapt_outdir']
 TRIMGALORE_OUTDIR = config['sample_data_dir'] + "/" + config['trim_galore_outdir']
 MAPPING_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_outdir']
+MAPPING_QUALITY_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_quality_outdir']
 PRE_FOR_UMI_OUTDIR = config['sample_data_dir'] + "/" + config['preprocessing_for_umi_outdir']
 DEDUPLICAITON_OUTDIR = config['sample_data_dir'] + "/" + config['deduplication_outdir']
 FASTQC_SECOND_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_second_outdir']
+COVERAGE_OUTDIR = config['sample_data_dir'] + "/" + config['coverage_outdir']
 PEAKCALLING_OUTDIR = config['sample_data_dir'] + "/" + config['peakcalling_outdir']
 POSTPROCESSING_OUTDIR = config['sample_data_dir'] + "/" + config['post_processing_outdir']
 MOTIF_DETECTION_OUTDIR = config['sample_data_dir'] + "/" + config['motif_detection_outdir']
@@ -133,6 +136,17 @@ rule trim_galore_clip:
 ## MAPPING ##
 #############
 
+# rule star_generate_index_for_genome:
+# 	input:
+# 		fasta=REF_GENOME_DIR + "/GRCh37.p13.genome.fa",
+# 		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
+# 	threads: 20
+# 	output:
+# 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
+#  	shell:
+#  		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} "
+#  		"--sjdbGTFfile {input.annotation}"
+
 # rule star:
 # 	input:
 # 		first_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
@@ -147,7 +161,7 @@ rule trim_galore_clip:
 # 	run:
 # 		shell("if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; else rm -r {MAPPING_OUTDIR} && mkdir {MAPPING_OUTDIR}; fi")
 # 		for i in range(0,len(input.first_read)):
-# 			shell("STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_MAPPING} "   
+# 			shell("STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
 # 			"--readFilesIn " + input.first_read[i] + " " + input.second_read[i] + " "  
 # 			"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
 # 			"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
@@ -157,6 +171,65 @@ rule trim_galore_clip:
 # 			"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
 # 			"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType Local  --twopassMode 'Basic' " 
 # 			"--twopass1readsN '-1'   --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' ")
+
+#####################
+## MAPPING QUALITY ##
+#####################
+
+# rule compute_gc_bias_plots:
+# 	input:
+# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+# 	output:
+# 		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_plot.png", sample=ALL_REPLICATES),
+# 		file=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_data.txt", sample=ALL_REPLICATES)
+# 	#threads: 20
+# 	run:
+# 		shell("if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; else rm -r {MAPPING_QUALITY_OUTDIR} && mkdir {MAPPING_QUALITY_OUTDIR}; fi")
+# 		for i in range(0,len(input)):
+# 			shell("samtools index " + input[i] + " "
+# 			"&& computeGCBias --numberOfProcessors {threads} "
+# 			"--bamfile " + input[i] + " --GCbiasFrequenciesFile " + output.file[i] + " --fragmentLength 300 "
+# 			"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 "
+# 			"--biasPlot " + output.plot[i] + " --plotFileFormat png")
+
+rule estimate_insert_size:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_plot.pdf", sample=ALL_REPLICATES),
+		report=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_report.txt", sample=ALL_REPLICATES)
+	run:
+		for i in range(0,len(input)):
+			shell("picard CollectInsertSizeMetrics INPUT=" + input[i] + " OUTPUT=" + output.report[i] + 
+			" HISTOGRAM_FILE=" + output.plot[i] + " DEVIATIONS='10.0'   MINIMUM_PCT='0.05' REFERENCE_SEQUENCE={REF_GENOME_DIR}/hg19_2.fa ASSUME_SORTED='true' " 
+			" METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR")
+
+rule finger_print_plot:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
+	threads: 20
+	run:
+		for i in range(0,len(input)):
+ 			shell("samtools index " + input[i])			
+		shell("plotFingerprint --numberOfProcessors {threads} --bamfiles {input} "
+		"--labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'")
+
+rule correlating_bam_files_plot:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
+		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+	threads: 20
+	run:
+		for i in range(0,len(input)):
+ 			shell("samtools index " + input[i])			
+		shell("multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
+		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
+		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
+		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'")
 
 ########################
 ## POST-MAP FILTERING ##
@@ -219,6 +292,20 @@ rule fastqc_second:
     	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; else rm -r {FASTQC_SECOND_OUTDIR} && mkdir {FASTQC_SECOND_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
 
+###############################
+## COUNTING / COVERAGE FILES ##
+###############################
+
+rule extract_alignment_ends:
+    input:
+    	expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
+    output:
+    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
+    run:
+    	shell("if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; else rm -r {COVERAGE_OUTDIR} && mkdir {COVERAGE_OUTDIR}; fi")
+    	for i in range(0,len(input)):
+    		shell("python /home/flow/Documents/bctools/bin/extract_aln_ends.py " + input[i] + " > " + output[i])
+
 #################
 ## PEAKCALLING ##
 #################
@@ -245,18 +332,55 @@ rule peakachu:
     	"&& cat {PEAKCALLING_OUTDIR}/peak_annotations/*.gff | awk '/peak/ {{ print $0 }}' > {output.peaks_gtf} "
     	"&& cat {PEAKCALLING_OUTDIR}/blockbuster_input/*bed > {output.blockbuster}"
 
+rule peak_calling_quality:
+	input:
+		peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+		clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP)
+	output:
+		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
+		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP)
+	run:
+		for i in range(0,len(input.clip)):
+			shell("htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' "
+			"--order=name --format=bam " + input.clip[i] + " {input.peaks} "
+			"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > """ + 
+			output.htseq_hits[i] + """ 2> """ + output.htseq_nohits[i] )
+
+rule peak_calling_quality_2:
+	input:
+		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
+		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP),
+	output:
+		reads_in_peaks=expand(PEAKCALLING_OUTDIR + "/{sample}_reads_summary.txt", sample=REPLICATES_CLIP)
+	run:
+		for i in range(0,len(input.htseq_hits)):
+			shell("""awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
+			"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' """ + input.htseq_hits[i] + " " + input.htseq_nohits[i] +
+			" > " + output.reads_in_peaks[i] )
+
 ##############################
 ## POST-PROCESSING OF PEAKS ##
 ##############################
 
-rule peak_tsv_to_bed:
+rule peaks_tsv_to_bed:
 	input:
 		PEAKCALLING_OUTDIR + "/peakachu.tsv"
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu.bed"
 	shell:
 		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; else rm -r {POSTPROCESSING_OUTDIR} && mkdir {POSTPROCESSING_OUTDIR}; fi"
-		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS; print "Chrom", "Start","End","Name","Score","Strand" }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
+		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
+
+rule peaks_extend_frontiers:
+	input:
+		bed=POSTPROCESSING_OUTDIR + "/peakachu.bed",
+		genome=REF_GENOME_DIR + "/hg19_chr_sizes.txt"
+	output:
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+	params:
+		nucleotides=20
+	shell:
+		"bedtools slop -header -b {params.nucleotides} -i {input.bed} -g {input.genome} > {output}"
 
 #####################
 ## MOTIF DETECTION ##
@@ -270,7 +394,7 @@ rule extract_genomic_DNA_dreme:
 	run:
 		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; else rm -r {MOTIF_DETECTION_OUTDIR} && mkdir {MOTIF_DETECTION_OUTDIR}; fi"
 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
-		"&& python /home/flow/Documents/PycharmProjects/ClIP_QC/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_MAPPING}/hg19_2.fa")
+		"&& python /home/flow/Documents/PycharmProjects/ClIP_QC/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/hg19_2.fa")
 
 rule dreme:
 	input: 
@@ -318,7 +442,7 @@ rule extract_genomic_DNA_meme:
 		for i in range(0,len(input)):
 			shell("""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' """ + input[i] + " > " + output.bed3[i] + " "
 			"&& python /home/flow/Documents/PycharmProjects/ClIP_QC/fetch_DNA_sequence.py -o " + output.fa[i] + " " + 
-			output.bed3[i] + " {REF_MAPPING}/hg19_2.fa")
+			output.bed3[i] + " {REF_GENOME_DIR}/hg19_2.fa")
 
 rule meme:
 	input: 
@@ -336,33 +460,24 @@ rule meme:
 
 rule fimo_for_dreme_output:
 	input: 
-		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.gff"
+		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
 	output:
-		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/{peak_file}.html"
-		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/{peak_file}.interval"
-		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/{peak_file}.txt"
-		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/{peak_file}.xml"
+		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
+		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
+		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
+		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
 	run:
 		shell("if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; else rm -r {MOTIF_SEARCH_OUTDIR} && mkdir {MOTIF_SEARCH_OUTDIR}; fi"
-		"&& if [ ! -d {MOTIF_SEARCH_OUTDIR}/fimo_dreme ]; then mkdir {MOTIF_SEARCH_OUTDIR}/fimo_dreme; else rm -r {MOTIF_SEARCH_OUTDIR}/fimo_dreme && mkdir {MOTIF_SEARCH_OUTDIR}/fimo_dreme; fi" 
-		"&& fimo --input_motifs {input} --input_fasta {REF_MAPPING}/hg19_2.fa "
-		"--options_type advanced --alpha '1.0'  --max_stored_scores '100000' --output_separate_motifs yes --motif_pseudo '0.1' "  
-		"--qv_thresh --thresh 0.0001 --output_path {MOTIF_SEARCH_OUTDIR}/fimo_dreme "
-		"--html_output {output.html} --interval_output {output.interval} --txt_output {output.txt} --xml_output {output.xml} --gff_output 'None' ")
+		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+		"--oc {MOTIF_SEARCH_OUTDIR}/fimo_dreme {input} {REF_GENOME_DIR}/hg19_2.fa")
 
 
-# rule motif_search_for_meme_output:
-# 	input: 
-# 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa", peak_file=PEAK_FILES_FOR_MEME)
-# 	output:
-# 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.html", peak_file=PEAK_FILES_FOR_MEME)
-# 	run:
-# 		shell("if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; else rm -r {MOTIF_SEARCH_OUTDIR} && mkdir {MOTIF_SEARCH_OUTDIR}; fi")
-# 		for i in range(0, len(input)):
-# 			shell(mkdir -p output && python '/usr/local/galaxy/shed_tools/toolshed.g2.bx.psu.edu/repos/iuc/meme_fimo/c470b36b592d/meme_fimo/fimo_wrapper.py'
-# 			 --input_motifs '/data/dnb01/galaxy_db/files/006/541/dataset_6541255.dat' --input_fasta '/data/db/reference_genomes/hg19/seq/hg19.fa' 
-# 			 --options_type advanced --alpha '1.0'  --max_stored_scores '100000' --output_separate_motifs yes --motif_pseudo '0.1'   
-# 			 --qv_thresh --thresh 0.0001 --output_path '/data/dnb01/galaxy_db/job_working_directory/003/635/3635323/dataset_6532511_files' 
-# 			 --html_output '/data/dnb01/galaxy_db/files/006/532/dataset_6532511.dat' --interval_output '/data/dnb01/galaxy_db/files/006/532/dataset_6532514.dat' 
-# 			 --txt_output '/data/dnb01/galaxy_db/files/006/532/dataset_6532512.dat' --xml_output '/data/dnb01/galaxy_db/files/006/532/dataset_6532513.dat' 
-# 			 --gff_output 'None')
+rule motif_search_for_meme_output:
+	input: 
+		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml", peak_file=PEAK_FILES_FOR_MEME)
+	output:
+		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
+	run:
+		for i in range(0, len(input)):
+			shell("fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+			"--oc " + output[i] + " " + input[i] + " {REF_GENOME_DIR}/hg19_2.fa")
