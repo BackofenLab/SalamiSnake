@@ -1,0 +1,13 @@
+name: deeptools
+channels:
+  - bioconda
+dependencies:
+  - matplotlib>=2.1.1
+  - numpy>=1.9.0
+  - pandas
+  - plotly>=1.9.0
+  - py2bit>=0.2.0
+  - pybigwig>=0.2.3
+  - pysam>=0.14.0
+  - python=3.6*
+  - scipy>=0.17.0

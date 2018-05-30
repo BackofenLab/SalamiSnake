@@ -1,0 +1,6 @@
+name: picard
+channels:
+  - bioconda
+dependencies:
+  - openjdk>=8
+  - python=3.6*

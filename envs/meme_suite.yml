@@ -1,0 +1,20 @@
+name: meme
+channels:
+  - bioconda
+dependencies:
+  - expat
+  - ghostscript
+  - libgcc
+  - libxml2=2.9.*
+  - libxslt
+  - perl=5.22.0*
+  - perl-cgi
+  - perl-html-parser
+  - perl-html-template
+  - perl-html-tree
+  - perl-xml-parser
+  - perl-xml-simple
+  - perl-yaml
+  - python=3.6*
+  - yaml
+  - zlib=1.2.11*
