@@ -1,5 +1,8 @@
 import random
 import math
+import os 
+
+SRC_PATH = os.getcwd()
 
 configfile: "config.yml"
 
@@ -88,32 +91,40 @@ rule fastqc_first:
 
 rule cutadapt_first_read_clip:
 	input:
-		expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=FIRST_READS)
+		first=expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=FIRST_READS),
+		second=expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=SECOND_READS)
 	output:
-		seq=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
+		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=FIRST_READS),
+		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=SECOND_READS),
 		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=FIRST_READS)
 	run:
 		shell("if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; else rm -r {CUTADAPT_OUTDIR} && mkdir {CUTADAPT_OUTDIR}; fi")
-		for i in range(0,len(input)):
+		for i in range(0,len(input.first)):
 			shell("cutadapt --format=fastq  --error-rate=0.1 --times=1 --overlap=5 " 
 			"--front='CTTCCGATCTACAAGTT' --front='CTTCCGATCTTGGTCCT' " 
-			"--output=" + output.seq[i] + " " + input[i] + " > " + output.log[i])
+			"--paired-output=" + output.seq_second[i] + " "
+			"--output=" + output.seq_first[i] + " " + input.first[i] + " " + input.second[i] +  " > " + output.log[i])
 
 rule cutadapt_second_read_clip:
 	input:
-		expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=SECOND_READS)
+		first=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=FIRST_READS),
+		second=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=SECOND_READS)
 	output:
-		seq=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS),
+		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
+		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS),
 		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=SECOND_READS)
 	run:
-		for i in range(0,len(input)):
+		for i in range(0,len(input.second)):
 			shell("cutadapt --format=fastq --error-rate=0.1 --times=1 --overlap=5 " 
-		"--adapter='AACTTGTAGATCGGA' --adapter='AGGACCAAGATCGGA' --adapter='ACTTGTAGATCGGAA' --adapter='GGAAGAGCGTCGTGT' "
-		"--adapter='GGACCAAGATCGGAA' --adapter='CTTGTAGATCGGAAG' --adapter='GACCAAGATCGGAAG' --adapter='TTGTAGATCGGAAGA' " 
-		"--adapter='ACCAAGATCGGAAGA' --adapter='TGTAGATCGGAAGAG' --adapter='CCAAGATCGGAAGAG' --adapter='GTAGATCGGAAGAGC' " 
-		"--adapter='CAAGATCGGAAGAGC' --adapter='TAGATCGGAAGAGCG' --adapter='AAGATCGGAAGAGCG' --adapter='AGATCGGAAGAGCGT' " 
-		"--adapter='GATCGGAAGAGCGTC' --adapter='ATCGGAAGAGCGTCG' --adapter='TCGGAAGAGCGTCGT' --adapter='CGGAAGAGCGTCGTG' "      
-		"--output=" + output.seq[i] + " " + input[i] + " > " + output.log[i])
+			"--adapter='AACTTGTAGATCGGA' --adapter='AGGACCAAGATCGGA' --adapter='ACTTGTAGATCGGAA' --adapter='GGAAGAGCGTCGTGT' "
+			"--adapter='GGACCAAGATCGGAA' --adapter='CTTGTAGATCGGAAG' --adapter='GACCAAGATCGGAAG' --adapter='TTGTAGATCGGAAGA' " 
+			"--adapter='ACCAAGATCGGAAGA' --adapter='TGTAGATCGGAAGAG' --adapter='CCAAGATCGGAAGAG' --adapter='GTAGATCGGAAGAGC' " 
+			"--adapter='CAAGATCGGAAGAGC' --adapter='TAGATCGGAAGAGCG' --adapter='AAGATCGGAAGAGCG' --adapter='AGATCGGAAGAGCGT' " 
+			"--adapter='GATCGGAAGAGCGTC' --adapter='ATCGGAAGAGCGTCG' --adapter='TCGGAAGAGCGTCGT' --adapter='CGGAAGAGCGTCGTG' "
+			"--paired-output=" + output.seq_first[i] + " "      
+			"--output=" + output.seq_second[i] + " " + input.second[i] + " " + input.first[i] + " > " + output.log[i] + 
+			"&& rm " + input.second[i] + 
+			"&& rm " + input.first[i])
 
 rule trim_galore_clip:
 	input:
@@ -136,61 +147,58 @@ rule trim_galore_clip:
 ## MAPPING ##
 #############
 
-# rule star_generate_index_for_genome:
-# 	input:
-# 		fasta=REF_GENOME_DIR + "/GRCh37.p13.genome.fa",
-# 		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
-# 	threads: 20
-# 	output:
-# 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
-#  	shell:
-#  		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} "
-#  		"--sjdbGTFfile {input.annotation}"
+rule star_generate_index_for_genome:
+	input:
+		fasta=REF_GENOME_DIR + "/GRCh37.p13.genome.fa",
+		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
+	threads: 20
+	output:
+		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
+	shell:
+		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
 
-# rule star:
-# 	input:
-# 		first_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
-# 		second_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
-# 	params:
-# 		cut_n_bases=5
-# 	resources:
-# 		mem=100
-# 	threads: 12
-# 	output:
-# 		expand(MAPPING_OUTDIR + "/.bam", sample=FIRST_READS)
-# 	run:
-# 		shell("if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; else rm -r {MAPPING_OUTDIR} && mkdir {MAPPING_OUTDIR}; fi")
-# 		for i in range(0,len(input.first_read)):
-# 			shell("STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
-# 			"--readFilesIn " + input.first_read[i] + " " + input.second_read[i] + " "  
-# 			"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
-# 			"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
-# 			"--outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' " 
-# 			"--outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' " 
-# 			"--seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' " 
-# 			"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
-# 			"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType Local  --twopassMode 'Basic' " 
-# 			"--twopass1readsN '-1'   --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' ")
+rule star:
+	input:
+		first_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
+		second_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
+	resources:
+		mem=100
+	threads: 20
+	output:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	run:
+		shell("if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; else rm -r {MAPPING_OUTDIR} && mkdir {MAPPING_OUTDIR}; fi")
+		for i in range(0,len(input.first_read)):
+			shell("STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
+			"--readFilesIn " + input.first_read[i] + " " + input.second_read[i] + " "  
+			"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
+			"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
+			"--outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' " 
+			"--outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' " 
+			"--seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' " 
+			"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
+			"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' " 
+			"--twopass1readsN '-1'   --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' > " + output[i])
 
 #####################
 ## MAPPING QUALITY ##
 #####################
 
-# rule compute_gc_bias_plots:
-# 	input:
-# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-# 	output:
-# 		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_plot.png", sample=ALL_REPLICATES),
-# 		file=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_data.txt", sample=ALL_REPLICATES)
-# 	#threads: 20
-# 	run:
-# 		shell("if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; else rm -r {MAPPING_QUALITY_OUTDIR} && mkdir {MAPPING_QUALITY_OUTDIR}; fi")
-# 		for i in range(0,len(input)):
-# 			shell("samtools index " + input[i] + " "
-# 			"&& computeGCBias --numberOfProcessors {threads} "
-# 			"--bamfile " + input[i] + " --GCbiasFrequenciesFile " + output.file[i] + " --fragmentLength 300 "
-# 			"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 "
-# 			"--biasPlot " + output.plot[i] + " --plotFileFormat png")
+rule compute_gc_bias_plots:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_plot.png", sample=ALL_REPLICATES),
+		file=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_data.txt", sample=ALL_REPLICATES)
+	threads: 20
+	run:
+		shell("if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; else rm -r {MAPPING_QUALITY_OUTDIR} && mkdir {MAPPING_QUALITY_OUTDIR}; fi")
+		for i in range(0,len(input)):
+			shell("samtools index " + input[i] + " "
+			"&& computeGCBias --numberOfProcessors {threads} "
+			"--bamfile " + input[i] + " --GCbiasFrequenciesFile " + output.file[i] + " --fragmentLength 300 "
+			"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 "
+			"--biasPlot " + output.plot[i] + " --plotFileFormat png")
 
 rule estimate_insert_size:
 	input:
@@ -292,20 +300,6 @@ rule fastqc_second:
     	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; else rm -r {FASTQC_SECOND_OUTDIR} && mkdir {FASTQC_SECOND_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
 
-###############################
-## COUNTING / COVERAGE FILES ##
-###############################
-
-rule extract_alignment_ends:
-    input:
-    	expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
-    output:
-    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
-    run:
-    	shell("if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; else rm -r {COVERAGE_OUTDIR} && mkdir {COVERAGE_OUTDIR}; fi")
-    	for i in range(0,len(input)):
-    		shell("python /home/flow/Documents/bctools/bin/extract_aln_ends.py " + input[i] + " > " + output[i])
-
 #################
 ## PEAKCALLING ##
 #################
@@ -318,13 +312,18 @@ rule peakachu:
     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
+    params:
+    	insert_size=200,
+    	mad_multiplier=0.0,
+    	fold_change_cutoff=2.0,
+    	q_value_cutoff=0.05
     shell:
     	#"--max_proc "${GALAXY_SLOTS:-1}"
     	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; else rm -r {PEAKCALLING_OUTDIR} && mkdir {PEAKCALLING_OUTDIR}; fi "
     	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} "
-    	"--paired_end --max_insert_size 50 --features '' --sub_features '' "
+    	"--paired_end --max_insert_size {params.insert_size} --features '' --sub_features '' "
     	"--output_folder {PEAKCALLING_OUTDIR} --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 "
-    	"--norm_method deseq --mad_multiplier 0.0 --fc_cutoff 0.0 --padj_threshold 0.05 "
+    	"--norm_method deseq --mad_multiplier {params.mad_multiplier} --fc_cutoff {params.fold_change_cutoff} --padj_threshold {params.q_value_cutoff} "
     	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
     	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
     	"&& rm tmp.tsv"
@@ -338,25 +337,108 @@ rule peak_calling_quality:
 		clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP)
 	output:
 		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
-		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP)
+		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP),
+		reads_in_peaks=expand(PEAKCALLING_OUTDIR + "/{sample}_reads_summary.txt", sample=REPLICATES_CLIP)
 	run:
 		for i in range(0,len(input.clip)):
 			shell("htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' "
 			"--order=name --format=bam " + input.clip[i] + " {input.peaks} "
 			"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > """ + 
-			output.htseq_hits[i] + """ 2> """ + output.htseq_nohits[i] )
-
-rule peak_calling_quality_2:
-	input:
-		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
-		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP),
-	output:
-		reads_in_peaks=expand(PEAKCALLING_OUTDIR + "/{sample}_reads_summary.txt", sample=REPLICATES_CLIP)
-	run:
-		for i in range(0,len(input.htseq_hits)):
-			shell("""awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
-			"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' """ + input.htseq_hits[i] + " " + input.htseq_nohits[i] +
+			output.htseq_hits[i] + """ 2> """ + output.htseq_nohits[i] + " "
+			"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
+			"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' """ + output.htseq_hits[i] + " " + output.htseq_nohits[i] +
 			" > " + output.reads_in_peaks[i] )
+
+###############################
+## COUNTING / COVERAGE FILES ##
+###############################
+
+rule extract_alignment_ends:
+    input:
+    	expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
+    output:
+    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
+    run:
+    	shell("if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; else rm -r {COVERAGE_OUTDIR} && mkdir {COVERAGE_OUTDIR}; fi")
+    	for i in range(0,len(input)):
+    		shell("python " + config["bctools"] + "/extract_aln_ends.py " + input[i] + " > " + output[i])
+
+rule extract_crosslinking_position:
+    input:
+    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
+    output:
+    	expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES)
+    run:
+    	for i in range(0,len(input)):
+    		shell("python " + config["bctools"] + "/coords2clnt.py " + input[i] + " > " + output[i])
+
+rule intersect_crosslink_sites_with_peaks:
+    input:
+    	peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+    	cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES)
+    output:
+    	expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=ALL_REPLICATES)
+    run:
+    	for i in range(0,len(input.cl)):
+    		shell("bedtools intersect -a " + input.cl[i] + " -b {input.peaks} -s -u -wa  > " + output[i])
+
+rule crosslink_sites_quality:
+	input:
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES),
+		ind=expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=ALL_REPLICATES)
+	output:
+		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=ALL_REPLICATES)
+	run:
+		for i in range(0,len(input.cl)):
+			total_crosslinking_events = sum(1 for line in open(input.cl[i]))
+			crosslinking_events_in_peaks = sum(1 for line in open(input.ind[i]))
+			shell("echo 'total crosslink sites: ' " + str(total_crosslinking_events) + " > " + output[i] + 
+			"&& echo 'crosslink sites in peaks: ' " + str(crosslinking_events_in_peaks) + " >> " + output[i] + 
+			"&& echo 'percentage of crosslinking sites in peaks: ' " + str(crosslinking_events_in_peaks/total_crosslinking_events) + " >> " + output[i])
+
+rule sort_beds:
+	input:
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES),
+		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
+	output:
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
+		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
+	run:
+		for i in range(0,len(input.cl)):
+			shell("bedtools sort -i " + input.cl[i] + " > " + output.cl[i] + " "
+			"&& bedtools sort -i " + input.alends[i] + " > " + output.alends[i])
+
+rule calculate_coverage:
+	input:
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
+		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
+	output:
+		cl_pos=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_pos_strand.bedgraph", sample=ALL_REPLICATES),
+		cl_neg=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_neg_strand.bedgraph", sample=ALL_REPLICATES),
+		cl_bot=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_both_strands.bedgraph", sample=ALL_REPLICATES),
+		alends_pos=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_pos_strand.bedgraph", sample=ALL_REPLICATES),
+		alends_ned=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_neg_strand.bedgraph", sample=ALL_REPLICATES),
+		alends_bot=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_both_strand.bedgraph", sample=ALL_REPLICATES)
+	run:
+		shell("if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; else rm -r {COVERAGE_OUTDIR}/bedgraph && mkdir {COVERAGE_OUTDIR}/bedgraph; fi")
+		for i in range(0,len(input.cl)):
+			shell(
+			"genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > " + output.cl_pos[i] + 
+			"&& genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > " + output.cl_neg[i] + 
+			"&& genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > " + output.cl_bot[i] + 
+			"genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > " + output.alends_pos[i] + 
+			"&& genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > " + output.alends_ned[i] + 
+			"&& genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > " + output.alends_bot[i] 
+			)
+
+# rule calculate_coverage:
+# 	input:
+# 		COVERAGE_OUTDIR + "/*.bedgraph"
+# 	output:
+# 		COVERAGE_OUTDIR + "/bigwig"
+# 	shell:
+# 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; else rm -r {COVERAGE_OUTDIR}/bigwig && mkdir {COVERAGE_OUTDIR}/bigwig; fi "
+# 		"&& grep -v '^track' {input} | wigToBigWig stdin  {REF_GENOME_DIR}/hg19_chr_sizes.txt {input} -clip 2>&1 || echo 'Error running wigToBigWig.' >&2"
 
 ##############################
 ## POST-PROCESSING OF PEAKS ##
@@ -388,26 +470,39 @@ rule peaks_extend_frontiers:
 
 rule extract_genomic_DNA_dreme:
 	input:
-		POSTPROCESSING_OUTDIR + "/peakachu.bed"
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	run:
 		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; else rm -r {MOTIF_DETECTION_OUTDIR} && mkdir {MOTIF_DETECTION_OUTDIR}; fi"
 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
-		"&& python /home/flow/Documents/PycharmProjects/ClIP_QC/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/hg19_2.fa")
+		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/hg19_2.fa")
 
 rule dreme:
 	input: 
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
-	run:
-		shell("python2 /home/flow/miniconda3/bin/dreme -p {input} -dna -s '1' -e 0.05 -m 100 -g 100 -mink 5 -maxk 20 "
-			"-oc {MOTIF_DETECTION_OUTDIR}/dreme")
+	params:
+		num_motifs=10,
+		min_motif_size=5,
+		max_motif_size=20
+	shell:
+		"python2 /home/flow/miniconda3/bin/dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
+		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
+
+rule meme_chip:
+	input: 
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+	shell:
+		"meme-chip {input} -noecho -dna -oc {MOTIF_DETECTION_OUTDIR}/meme_chip -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 "
+		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
 
 rule cross_random_subsampling_for_meme:
 	input:
-		POSTPROCESSING_OUTDIR + "/peakachu.bed"
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 	output:
 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
 	params:
@@ -441,7 +536,7 @@ rule extract_genomic_DNA_meme:
 	run:
 		for i in range(0,len(input)):
 			shell("""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' """ + input[i] + " > " + output.bed3[i] + " "
-			"&& python /home/flow/Documents/PycharmProjects/ClIP_QC/fetch_DNA_sequence.py -o " + output.fa[i] + " " + 
+			"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o " + output.fa[i] + " " + 
 			output.bed3[i] + " {REF_GENOME_DIR}/hg19_2.fa")
 
 rule meme:
@@ -449,10 +544,24 @@ rule meme:
 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa", peak_file=PEAK_FILES_FOR_MEME)
 	output:
 		output_dir=expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
+	params:
+		num_motifs=10,
+		min_motif_size=5,
+		max_motif_size=20
 	run:
 		for i in range(0, len(input)):
-			shell("meme " + input[i] + " -dna -revcomp -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs 5 -mod zoops -wnsites 0.8 -minw 5 -maxw 20 "
-			"-wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc " + output.output_dir[i])
+			shell("meme " + input[i] + " -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
+			"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc " + output.output_dir[i])
+
+rule rcas:
+	input:
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/rcas/rcas_summary.html"
+	shell:
+		"if [ ! -d {MOTIF_DETECTION_OUTDIR}/rcas ]; then mkdir {MOTIF_DETECTION_OUTDIR}/rcas; else rm -r {MOTIF_DETECTION_OUTDIR}/rcas && mkdir {MOTIF_DETECTION_OUTDIR}/rcas; fi"
+		"&& Rscript " + config["rcas"] + "/RCAS.R {input} {REF_GENOME_DIR}/Ensembl_Homo_sapiens.GRCh37.74.gtf ... 'hg19' {SRC_PATH}/{MOTIF_DETECTION_OUTDIR}/rcas 0 "
+		"&& mv {MOTIF_DETECTION_OUTDIR}/rcas/*.html {MOTIF_DETECTION_OUTDIR}/rcas/rcas_summary.html"
 
 ##################
 ## MOTIF SEARCH ##
