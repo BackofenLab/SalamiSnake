@@ -85,6 +85,8 @@ rule fastqc_first:
     output:
     	expand(FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.html", sample=ALL_SAMPLES),
     	expand(FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.zip", sample=ALL_SAMPLES)
+    conda:
+    	"envs/fastqc.yml"
     shell:
     	"if [ ! -d {FASTQC_FIRST_OUTDIR} ]; then mkdir {FASTQC_FIRST_OUTDIR}; else rm -r {FASTQC_FIRST_OUTDIR} && mkdir {FASTQC_FIRST_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_FIRST_OUTDIR}"
@@ -97,6 +99,8 @@ rule cutadapt_first_read_clip:
 		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=FIRST_READS),
 		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=SECOND_READS),
 		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=FIRST_READS)
+	conda:
+		"envs/cutadapt.yml"
 	run:
 		shell("if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; else rm -r {CUTADAPT_OUTDIR} && mkdir {CUTADAPT_OUTDIR}; fi")
 		for i in range(0,len(input.first)):
@@ -113,6 +117,8 @@ rule cutadapt_second_read_clip:
 		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
 		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS),
 		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=SECOND_READS)
+	conda:
+		"envs/cutadapt.yml"
 	run:
 		for i in range(0,len(input.second)):
 			shell("cutadapt --format=fastq --error-rate=0.1 --times=1 --overlap=5 " 
@@ -135,6 +141,8 @@ rule trim_galore_clip:
 	output:
 		first_read_out=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
 		second_read_out=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
+	conda:
+		"envs/trim_galore.yml"
 	run:
 		shell("if [ ! -d {TRIMGALORE_OUTDIR} ]; then mkdir {TRIMGALORE_OUTDIR}; else rm -r {TRIMGALORE_OUTDIR} && mkdir {TRIMGALORE_OUTDIR}; fi")
 		for i in range(0,len(input.first_read)):
@@ -151,9 +159,11 @@ rule star_generate_index_for_genome:
 	input:
 		fasta=REF_GENOME_DIR + "/GRCh37.p13.genome.fa",
 		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
-	threads: 20
 	output:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
+	threads: 20
+	conda:
+		"envs/star.yml"
 	shell:
 		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
 
@@ -161,11 +171,11 @@ rule star:
 	input:
 		first_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
 		second_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
-	resources:
-		mem=100
-	threads: 20
 	output:
 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	threads: 20
+	conda:
+		"envs/star.yml"
 	run:
 		shell("if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; else rm -r {MAPPING_OUTDIR} && mkdir {MAPPING_OUTDIR}; fi")
 		for i in range(0,len(input.first_read)):
@@ -191,6 +201,8 @@ rule compute_gc_bias_plots:
 		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_plot.png", sample=ALL_REPLICATES),
 		file=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_data.txt", sample=ALL_REPLICATES)
 	threads: 20
+	conda:
+		"envs/deeptools.yml"
 	run:
 		shell("if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; else rm -r {MAPPING_QUALITY_OUTDIR} && mkdir {MAPPING_QUALITY_OUTDIR}; fi")
 		for i in range(0,len(input)):
@@ -206,6 +218,8 @@ rule estimate_insert_size:
 	output:
 		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_plot.pdf", sample=ALL_REPLICATES),
 		report=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_report.txt", sample=ALL_REPLICATES)
+	conda:
+		"envs/picard.yml"
 	run:
 		for i in range(0,len(input)):
 			shell("picard CollectInsertSizeMetrics INPUT=" + input[i] + " OUTPUT=" + output.report[i] + 
@@ -218,6 +232,8 @@ rule finger_print_plot:
 	output:
 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
 	threads: 20
+	conda:
+		"envs/deeptools.yml"
 	run:
 		for i in range(0,len(input)):
  			shell("samtools index " + input[i])			
@@ -231,6 +247,8 @@ rule correlating_bam_files_plot:
 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
 	threads: 20
+	conda:
+		"envs/deeptools.yml"
 	run:
 		for i in range(0,len(input)):
  			shell("samtools index " + input[i])			
@@ -277,6 +295,8 @@ rule deduplication:
 		bam=expand(DEDUPLICAITON_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES),
 		log=expand(DEDUPLICAITON_OUTDIR + "/{sample}_log.txt", sample=ALL_REPLICATES),
 		sorted_bam=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
+	conda:
+		"ennv/umi.yml"
 	run:
 		shell("if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; else rm -r {DEDUPLICAITON_OUTDIR} && mkdir {DEDUPLICAITON_OUTDIR}; fi")
 		for i in range(0,len(input)):
@@ -296,6 +316,8 @@ rule fastqc_second:
     output:
     	expand(FASTQC_SECOND_OUTDIR + "/{sample}.fastqsanger_fastqc.html", sample=ALL_REPLICATES),
     	expand(FASTQC_SECOND_OUTDIR + "/{sample}.fastqsanger_fastqc.zip", sample=ALL_REPLICATES)
+    conda:
+    	"envs/fastqc.yml"
     shell:
     	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; else rm -r {FASTQC_SECOND_OUTDIR} && mkdir {FASTQC_SECOND_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
@@ -312,6 +334,8 @@ rule peakachu:
     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
+    conda:
+    	"envs/peakachu.yml"
     params:
     	insert_size=200,
     	mad_multiplier=0.0,
@@ -339,6 +363,8 @@ rule peak_calling_quality:
 		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
 		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP),
 		reads_in_peaks=expand(PEAKCALLING_OUTDIR + "/{sample}_reads_summary.txt", sample=REPLICATES_CLIP)
+	conda:
+		"envs/htseq.yml"
 	run:
 		for i in range(0,len(input.clip)):
 			shell("htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' "
@@ -483,6 +509,8 @@ rule dreme:
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
+	conda:
+		"envs/meme_suite.yml"
 	params:
 		num_motifs=10,
 		min_motif_size=5,
@@ -496,6 +524,8 @@ rule meme_chip:
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+	conda:
+		"envs/meme_suite.yml"
 	shell:
 		"meme-chip {input} -noecho -dna -oc {MOTIF_DETECTION_OUTDIR}/meme_chip -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 "
 		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
@@ -544,6 +574,8 @@ rule meme:
 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa", peak_file=PEAK_FILES_FOR_MEME)
 	output:
 		output_dir=expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
+	conda:
+		"envs/meme_suite.yml"
 	params:
 		num_motifs=10,
 		min_motif_size=5,
@@ -575,6 +607,8 @@ rule fimo_for_dreme_output:
 		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
 		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
 		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
+	conda:
+		"envs/meme_suite.yml"
 	run:
 		shell("if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; else rm -r {MOTIF_SEARCH_OUTDIR} && mkdir {MOTIF_SEARCH_OUTDIR}; fi"
 		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
@@ -586,6 +620,8 @@ rule motif_search_for_meme_output:
 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml", peak_file=PEAK_FILES_FOR_MEME)
 	output:
 		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
+	conda:
+		"envs/meme_suite.yml"
 	run:
 		for i in range(0, len(input)):
 			shell("fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
