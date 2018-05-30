@@ -1,0 +1,7 @@
+name: trim-galore
+channels:
+  - bioconda
+dependencies:
+  - cutadapt
+  - fastqc
+  - perl=5.22.0*

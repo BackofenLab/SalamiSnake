@@ -1,0 +1,10 @@
+name: umi_tools
+channels:
+  - bioconda
+dependencies:
+  - cython>=0.19
+  - future
+  - numpy>=1.7
+  - pandas>=0.12.0
+  - pysam>=0.8.4
+  - python=3.6*

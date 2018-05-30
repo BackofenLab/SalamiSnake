@@ -1,0 +1,17 @@
+name: peakachu
+channels:
+  - bioconda
+dependencies:
+  - bcbiogff>=0.6.4
+  - bioconductor-deseq2>=1.18.1
+  - bioconductor-edger
+  - biopython>=1.69
+  - blockbuster
+  - libgcc
+  - matplotlib>=2.0.2
+  - numexpr>=2.6.2
+  - pandas>=0.20.2
+  - pysam>=0.11.2.2
+  - python=3.6*
+  - rpy2>=2.8.5
+  - statsmodels>=0.8.0

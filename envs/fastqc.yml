@@ -1,0 +1,6 @@
+name: fastqc
+channels:
+  - bioconda
+dependencies:
+  - openjdk
+  - perl=5.22.0*

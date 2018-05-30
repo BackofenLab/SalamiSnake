@@ -1,0 +1,8 @@
+name: cutadapt
+channels:
+  - bioconda
+dependencies:
+  - pigz
+  - python=3.6*
+  - xopen>=0.3.2
+
