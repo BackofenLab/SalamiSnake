@@ -1,12 +1,22 @@
 
+######################
+# Sample Definitions #
+######################
+
 clip_samples:
   A_rep1:  {r1: "A_r1", r2: "A_r2"}
 
 control_samples:
   C_rep1:  {r1: "C_r1", r2: "C_r2"}
 
+###############
+# Directories #
+###############
+
+# input directory
 sample_data_dir: "test_data"
 
+# output directories
 fastqc_first_outdir:  "fastqc_first"
 cutadapt_outdir:  "cutadapt"
 trim_galore_outdir: "trim_galore"
@@ -20,3 +30,8 @@ peakcalling_outdir:  "peakcalling"
 post_processing_outdir: "post_processing"
 motif_detection_outdir: "motif_detection"
 motif_search_outdir: "motif_search"
+
+# tool directories
+bctools: "/home/flow/Documents/bctools/bin"
+rcas: "/home/flow/Documents/RCAS"
+extract_genomic_dna: "/home/flow/Documents/PycharmProjects/ClIP_QC"
