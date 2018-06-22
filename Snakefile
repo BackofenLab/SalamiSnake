@@ -9,7 +9,7 @@ configfile: "config.yml"
 REF_GENOME_DIR="/scratch/bi01/heylf/genomes/hg19"
 #REF_GENOME_DIR="genomes/hg19"
 
-THREADS=4
+THREADS=2
 
 ###############
 ## FUNCTIONS ##
@@ -90,20 +90,28 @@ rule all:
 	input: 
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)
+		expand(TRIMGALORE_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		expand(TRIMGALORE_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
+		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)#,
 		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		# MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
-		# MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
-		# expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)#,
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
+		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		# expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		# expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		# PEAKCALLING_OUTDIR + "/peakachu.tsv",
-		# expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=REPLICATES_CLIP, replicate=REP_NAME_CLIP),
+		PEAKCALLING_OUTDIR + "/peakachu.tsv",
+		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed",
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa",
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
 
 
 ALL_NEW_FILE_NAMES = ["none"] * ((len(REPLICATES_CLIP) + len(REPLICATES_CONTROL)) * 2)
@@ -117,8 +125,6 @@ for j in REP_NAME_CONTROL:
 	for k in PAIR:
 		ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[1] + "_" + j + "_" + k + ".fastqsanger"
 		i += 1
-
-print(ALL_NEW_FILE_NAMES)
 
 rule renaming:
 	input:
@@ -208,9 +214,9 @@ rule trim_galore_clip:
 		"&& mv {output.first_read_out}_val_1.fq {output.first_read_out}" 
 		"&& mv {output.second_read_out}_val_2.fq {output.second_read_out}"
 
-# #############
-# ## MAPPING ##
-# #############
+#############
+## MAPPING ##
+#############
 
 rule star_generate_index_for_genome:
 	input:
@@ -220,20 +226,26 @@ rule star_generate_index_for_genome:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
 	threads: THREADS
 	shell:
-		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
+		"if [ -d {config[sample_data_dir]}/STAR_tmp_Index ]; then rm -r {config[sample_data_dir]}/STAR_tmp_Index; fi "
+		"&& STAR --outTmpDir {config[sample_data_dir]}/STAR_tmp_Index --runThreadN {threads} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} "
+		"--genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
 
 rule star:
 	input:
 		first_read=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
-		second_read=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
+		second_read=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
 	output:
-		MAPPING_OUTDIR + "/{sample}_{replicate}.txt"
+		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
+		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	threads: THREADS
+	params:
+		output_folder=MAPPING_OUTDIR + "/{sample}_{replicate}"	
 	shell:
-		"if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; fi"
-		"&& if [ -d {config[sample_data_dir]}/STAR_tmp ]; then rm -r {config[sample_data_dir]}/STAR_tmp; fi"
+		"if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; fi "
+		"&& TIME=$(date +%N) "
+		"&& if [ -d {config[sample_data_dir]}/STAR_tmp_$TIME ]; then rm -r {config[sample_data_dir]}/STAR_tmp_$TIME; fi "
 		"&& STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
-		"--readFilesIn {input.first_read} {input.second_read} --outTmpDir {config[sample_data_dir]}/STAR_tmp  --outFileNamePrefix {MAPPING_OUTDIR}"  
+		"--readFilesIn {input.first_read} {input.second_read} --outTmpDir {config[sample_data_dir]}/STAR_tmp_$TIME  --outFileNamePrefix {params.output_folder}_ "  
 		"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
 		"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
 		"--outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' " 
@@ -241,11 +253,22 @@ rule star:
 		"--seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' " 
 		"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
 		"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' " 
-		"--twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' > {output}"
+		"--twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' > {output.log} "
+		"&& mv {params.output_folder}_Aligned.sortedByCoord.out.bam {output.bam} "
+		"&& rm -r {config[sample_data_dir]}/STAR_tmp_$TIME"
 
-# #####################
-# ## MAPPING QUALITY ##
-# #####################
+rule indexing:
+	input:
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+	output:
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai"
+	threads: THREADS
+	shell:
+		"samtools index {input}"
+
+#####################
+## MAPPING QUALITY ##
+#####################
 
 # rule compute_gc_bias_plots:
 # 	input:
@@ -258,7 +281,6 @@ rule star:
 # 		"envs/deeptools.yml"
 # 	shell:
 # 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-# 		"&& samtools index {input}"
 # 		"&& computeGCBias --numberOfProcessors {threads} --bamfile {input} --GCbiasFrequenciesFile {output.file} --fragmentLength 300 "
 # 		"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 --biasPlot {output.plot} --plotFileFormat png"
 
@@ -268,26 +290,26 @@ rule star:
 # 	output:
 # 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf",
 # 		report=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_report.txt"
-#	threads: THREADS
+# 	threads: THREADS
 # 	conda:
 # 		"envs/picard.yml"
 # 	shell:
 # 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
 # 		"&& picard CollectInsertSizeMetrics INPUT={input} OUTPUT={output.report} "
-# 		"HISTOGRAM_FILE={output.plot} DEVIATIONS='10.0' MINIMUM_PCT='0.05' REFERENCE_SEQUENCE={REF_GENOME_DIR}/hg19_2.fa ASSUME_SORTED='true' " 
+# 		"HISTOGRAM_FILE={output.plot} DEVIATIONS='10.0' MINIMUM_PCT='0.05' REFERENCE_SEQUENCE={REF_GENOME_DIR}/hg19.fa ASSUME_SORTED='true' " 
 # 		"METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR"
 
-# rule finger_print_plot:
-# 	input:
-# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-# 	output:
-# 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/deeptools.yml"
-# 	shell:	
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-# 		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} --labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
+rule finger_print_plot:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
+	threads: THREADS
+	conda:
+		"envs/deeptools.yml"
+	shell:	
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} --labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
 
 # rule correlating_bam_files_plot:
 # 	input:
@@ -305,55 +327,55 @@ rule star:
 # 		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
 # 		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'"
 
-# ########################
-# ## POST-MAP FILTERING ##
-# ########################
+########################
+## POST-MAP FILTERING ##
+########################
 
-# rule unique_reads_fitlering:
-# 	input:
-# 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
-# 	output:
-# 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
-# 	threads: THREADS
-# 	shell:
-# 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
-# 		"&& samtools view -h {input} "
-# 		"| awk '$0 ~ /^@/{{ print }} ($2 == 163 || $2 == 147 || $2 == 83 || $2 == 99)&&$0!~/XS:i/{{ print }} ' "  
-# 		"| samtools view -bSh > {output}"
+rule unique_reads_fitlering:
+	input:
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+	output:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
+	threads: THREADS
+	shell:
+		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
+		"&& samtools view -h {input} "
+		"| awk '$0 ~ /^@/{{ print }} ($2 == 163 || $2 == 147 || $2 == 83 || $2 == 99)&&$0!~/XS:i/{{ print }} ' "  
+		"| samtools view -bSh > {output}"
 
-# rule got_umis:
-# 	input:
-# 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
-# 	output:
-# 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
-# 	threads: THREADS
-# 	shell:
-# 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
-# 		"&& samtools view -h {input} "
-# 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{ print $0; }} else {{split($1,str,":"); $1=str[2]":"str[3]":"str[4]":"str[5]":"str[6]":"str[7]":"str[8]"_"str[1]; print $0; }} }}' """
-# 		"| samtools view -bSh > {output}"
+rule got_umis:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
+	output:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	threads: THREADS
+	shell:
+		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
+		"&& samtools view -h {input} "
+		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{ print $0; }} else {{split($1,str,":"); $1=str[2]":"str[3]":"str[4]":"str[5]":"str[6]":"str[7]":"str[8]"_"str[1]; print $0; }} }}' """
+		"| samtools view -bSh > {output}"
+		"&& samtools index {output}"
  
-# ###################
-# ## DEDUPLICATION ##
-# ###################
+###################
+## DEDUPLICATION ##
+###################
 
-# rule deduplication:
-# 	input:
-# 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
-# 	output:
-# 		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
-# 		log=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_log.txt",
-# 		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-# 	threads: THREADS
-# 	conda:
-# 		"ennv/umi.yml"
-# 	shell:
-# 		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi"
-# 		"&& samtools index {input}"
-# 		"&& umi_tools dedup --random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --paired " 
-# 		"--soft-clip-threshold 4 --subset 1.0 -I {input} -S {output.bam} -L {output.log}"
-# 		"&& samtools sort {output.bam} > {output.sorted_bam}"
-# 		"&& samtools index {output.sorted_bam}"
+rule deduplication:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	output:
+		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
+		log=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_log.txt",
+		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+	threads: THREADS
+	conda:
+		"envs/umi.yml"
+	shell:
+		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi"
+		"&& umi_tools dedup --random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --paired " 
+		"--soft-clip-threshold 4 --subset 1.0 -I {input} -S {output.bam} -L {output.log}"
+		"&& samtools sort {output.bam} > {output.sorted_bam}"
+		"&& samtools index {output.sorted_bam}"
 
 # ############################
 # ## SECOND QUALITY CONTROL ##
@@ -376,52 +398,54 @@ rule star:
 # ## PEAKCALLING ##
 # #################
 
-# rule peakachu:
-#     input:
-#     	clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
-#     	control=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL)
-#     output:
-#     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
-#     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-#     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
-#     threads: THREADS
-#     conda:
-#     	"envs/peakachu.yml"
-#     params:
-#     	insert_size=200,
-#     	mad_multiplier=0.0,
-#     	fold_change_cutoff=2.0,
-#     	q_value_cutoff=0.05
-#     shell:
-#     	#"--max_proc "${GALAXY_SLOTS:-1}"
-#     	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
-#     	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} "
-#     	"--paired_end --max_insert_size {params.insert_size} --features '' --sub_features '' "
-#     	"--output_folder {PEAKCALLING_OUTDIR} --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 "
-#     	"--norm_method deseq --mad_multiplier {params.mad_multiplier} --fc_cutoff {params.fold_change_cutoff} --padj_threshold {params.q_value_cutoff}"
-#     	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
-#     	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
-#     	"&& rm tmp.tsv"
-#     	"&& tail -n +2 -q {PEAKCALLING_OUTDIR}/peak_tables/*.csv >> {output.peaks_tsv} "
-#     	"&& cat {PEAKCALLING_OUTDIR}/peak_annotations/*.gff | awk '/peak/ {{ print $0 }}' > {output.peaks_gtf} "
-#     	"&& cat {PEAKCALLING_OUTDIR}/blockbuster_input/*bed > {output.blockbuster}"
+rule peakachu:
+    input:
+    	clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
+    	control=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL)
+    output:
+    	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
+    	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+    	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
+    threads: THREADS
+    conda:
+    	"envs/peakachu.yml"
+    params:
+    	insert_size=200,
+    	mad_multiplier=0.0,
+    	fold_change_cutoff=2.0,
+    	q_value_cutoff=0.05
+    shell:
+    	#"--max_proc "${GALAXY_SLOTS:-1}"
+    	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+    	"&& source activate peakachu"
+    	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} "
+    	"--paired_end --max_insert_size {params.insert_size} --features '' --sub_features '' "
+    	"--output_folder {PEAKCALLING_OUTDIR} --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 "
+    	"--norm_method deseq --mad_multiplier {params.mad_multiplier} --fc_cutoff {params.fold_change_cutoff} --padj_threshold {params.q_value_cutoff}"
+    	"&& source deactivate "
+    	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
+    	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
+    	"&& rm tmp.tsv"
+    	"&& tail -n +2 -q {PEAKCALLING_OUTDIR}/peak_tables/*.csv >> {output.peaks_tsv} "
+    	"&& cat {PEAKCALLING_OUTDIR}/peak_annotations/*.gff | awk '/peak/ {{ print $0 }}' > {output.peaks_gtf} "
+    	"&& cat {PEAKCALLING_OUTDIR}/blockbuster_input/*bed > {output.blockbuster}"
 
-# rule peak_calling_quality:
-# 	input:
-# 		peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-# 		clip=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-# 	output:
-# 		htseq_hits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt",
-# 		htseq_nohits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_nohits.txt",
-# 		reads_in_peaks=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_reads_summary.txt"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/htseq.yml"
-# 	shell:
-# 		"htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' --order=name --format=bam {input.clip} {input.peaks} "
-# 		"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > {output.htseq_hits} 2> {output.htseq_nohits} """
-# 		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
-# 		"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_peaks}"""
+rule peak_calling_quality:
+	input:
+		peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+		clip=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+	output:
+		htseq_hits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt",
+		htseq_nohits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_nohits.txt",
+		reads_in_peaks=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_reads_summary.txt"
+	threads: THREADS
+	conda:
+		"envs/htseq.yml"
+	shell:
+		"htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' --order=name --format=bam {input.clip} {input.peaks} "
+		"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > {output.htseq_hits} 2> {output.htseq_nohits} """
+		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
+		"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_peaks}"""
 
 # ###############################
 # ## COUNTING / COVERAGE FILES ##
@@ -514,46 +538,46 @@ rule star:
 # 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
 # 		"&& grep -v '^track' {input} | wigToBigWig stdin  {REF_GENOME_DIR}/hg19_chr_sizes.txt {input} -clip 2>&1 || echo 'Error running wigToBigWig.' >&2"
 
-# ##############################
-# ## POST-PROCESSING OF PEAKS ##
-# ##############################
+##############################
+## POST-PROCESSING OF PEAKS ##
+##############################
 
-# rule peaks_tsv_to_bed:
-# 	input:
-# 		PEAKCALLING_OUTDIR + "/peakachu.tsv"
-# 	output:
-# 		POSTPROCESSING_OUTDIR + "/peakachu.bed"
-# 	threads: THREADS
-# 	shell:
-# 		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
-# 		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
+rule peaks_tsv_to_bed:
+	input:
+		PEAKCALLING_OUTDIR + "/peakachu.tsv"
+	output:
+		POSTPROCESSING_OUTDIR + "/peakachu.bed"
+	threads: THREADS
+	shell:
+		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
+		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
 
-# rule peaks_extend_frontiers:
-# 	input:
-# 		bed=POSTPROCESSING_OUTDIR + "/peakachu.bed",
-# 		genome=REF_GENOME_DIR + "/hg19_chr_sizes.txt"
-# 	output:
-# 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-# 	threads: THREADS
-# 	params:
-# 		nucleotides=20
-# 	shell:
-# 		"bedtools slop -header -b {params.nucleotides} -i {input.bed} -g {input.genome} > {output}"
+rule peaks_extend_frontiers:
+	input:
+		bed=POSTPROCESSING_OUTDIR + "/peakachu.bed",
+		genome=REF_GENOME_DIR + "/hg19_chr_sizes.txt"
+	output:
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+	threads: THREADS
+	params:
+		nucleotides=20
+	shell:
+		"bedtools slop -header -b {params.nucleotides} -i {input.bed} -g {input.genome} > {output}"
 
-# #####################
-# ## MOTIF DETECTION ##
-# #####################
+#####################
+## MOTIF DETECTION ##
+#####################
 
-# rule extract_genomic_DNA_dreme:
-# 	input:
-# 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-# 	output:
-# 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-# 	threads: THREADS
-# 	shell:
-# 		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
-# 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
-# 		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/hg19_2.fa")
+rule extract_genomic_DNA_dreme:
+	input:
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+	threads: THREADS
+	shell:
+		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
+		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
+		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
 # rule dreme:
 # 	input: 
@@ -562,26 +586,26 @@ rule star:
 # 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
 # 	threads: THREADS
 # 	conda:
-# 		"envs/meme_suite.yml"
+# 		"envs/dreme.yml"
 # 	params:
 # 		num_motifs=10,
 # 		min_motif_size=5,
 # 		max_motif_size=20
 # 	shell:
-# 		"python2 /home/flow/miniconda3/bin/dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
+# 		"dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
 # 		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
 
-# rule meme_chip:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-# 	output:
-# 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/meme_suite.yml"
-# 	shell:
-# 		"meme-chip {input} -noecho -dna -oc {MOTIF_DETECTION_OUTDIR}/meme_chip -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 "
-# 		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
+rule meme_chip:
+	input: 
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+	threads: THREADS
+	conda:
+		"envs/meme_suite.yml"
+	shell:
+		"meme-chip {input} -noecho -dna -oc {MOTIF_DETECTION_OUTDIR}/meme_chip -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 "
+		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
 
 # rule cross_random_subsampling_for_meme:
 # 	input:
