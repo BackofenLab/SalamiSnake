@@ -1,0 +1,51 @@
+
+
+__default__:
+        jobname: "SalamiSnake"
+        cores: "smp 2"
+        mem: "h_vmem=4G"
+        out: "/scratch/bi01/heylf/SalamiSnake"
+        err: "/scratch/bi01/heylf/SalamiSnake"
+
+star_generate_index_for_genome:
+        jobname: "STAR_Indexing"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.err"
+
+star:
+        jobname: "STAR"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.err"
+
+deduplication:
+        jobname: "UMI-dedup"
+        cores: "smp 2"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.{wildcards}.err"
+
+peakachu:
+        jobname: "PEAKachu"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.err"
+
+dreme:
+        jobname: "DREME"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.err"
+
+meme_chip:
+        jobname: "MEME_CHIP"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
+        out: "/scratch/bi01/heylf/SalamiSnake/{rule}.out"
+        err: "/scratch/bi01/heylf/SalamiSnake/{rule}.err"
+
