@@ -4,19 +4,21 @@
 ######################
 
 clip_samples:
-  A_rep1:  {r1: "A_r1", r2: "A_r2"}
+  RBFOX_rep1: {r1: "ENCFF172GUS", r2: "ENCFF647KDW"}
+  RBFOX_rep2: {r1: "ENCFF591SSP", r2: "ENCFF289OFA"}
 
 control_samples:
-  C_rep1:  {r1: "C_r1", r2: "C_r2"}
+  Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
 
 ###############
 # Directories #
 ###############
 
 # input directory
-sample_data_dir: "test_data"
+sample_data_dir: "/scratch/bi01/heylf/eCLIP/RBFOX2"
 
 # output directories
+renaming_outdir:  "renaming"
 fastqc_first_outdir:  "fastqc_first"
 cutadapt_outdir:  "cutadapt"
 trim_galore_outdir: "trim_galore"
@@ -32,6 +34,6 @@ motif_detection_outdir: "motif_detection"
 motif_search_outdir: "motif_search"
 
 # tool directories
-bctools: "/home/flow/Documents/bctools/bin"
-rcas: "/home/flow/Documents/RCAS"
-extract_genomic_dna: "/home/flow/Documents/PycharmProjects/ClIP_QC"
+bctools: "scripts"
+rcas: "scripts"
+extract_genomic_dna: "scripts"
