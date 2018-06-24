@@ -9,8 +9,6 @@ configfile: "config.yml"
 REF_GENOME_DIR="/scratch/bi01/heylf/genomes/hg19"
 #REF_GENOME_DIR="genomes/hg19"
 
-THREADS=2
-
 ###############
 ## FUNCTIONS ##
 ###############
@@ -90,8 +88,6 @@ rule all:
 	input: 
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
-		expand(TRIMGALORE_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-		expand(TRIMGALORE_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
@@ -111,7 +107,11 @@ rule all:
 		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed",
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa",
-		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html",
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html",
+ 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME),
+ 		MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
+ 		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
 
 
 ALL_NEW_FILE_NAMES = ["none"] * ((len(REPLICATES_CLIP) + len(REPLICATES_CONTROL)) * 2)
@@ -149,7 +149,7 @@ rule fastqc_first:
     output:
     	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.html",
     	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.zip"
-    threads: THREADS
+    threads: 2
     conda:
     	"envs/fastqc.yml"
     shell:
@@ -162,9 +162,10 @@ rule cutadapt_first_read_clip:
 		second=RENAMING + "/{samples}_{replicate}_r2.fastqsanger"
 	output:
 		seq_first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1_tmp.fastqsanger",
+		seq_first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1_tmp.fastqsanger",
 		seq_second=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r2_tmp.fastqsanger",
 		log=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1.txt"
-	threads: THREADS 
+	threads: 2 
 	conda:
 		"envs/cutadapt.yml"
 	shell:
@@ -181,7 +182,7 @@ rule cutadapt_second_read_clip:
 		seq_first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
 		seq_second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
 		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.txt"
-	threads: THREADS
+	threads: 2
 	conda:
 		"envs/cutadapt.yml"
 	shell:
@@ -202,7 +203,7 @@ rule trim_galore_clip:
 	output:
 		first_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
 		second_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
-	threads: THREADS
+	threads: 2
 	params:
 		cut_n_bases=5
 	conda:
@@ -224,7 +225,7 @@ rule star_generate_index_for_genome:
 		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
 	output:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
-	threads: THREADS
+	threads: 4
 	shell:
 		"if [ -d {config[sample_data_dir]}/STAR_tmp_Index ]; then rm -r {config[sample_data_dir]}/STAR_tmp_Index; fi "
 		"&& STAR --outTmpDir {config[sample_data_dir]}/STAR_tmp_Index --runThreadN {threads} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} "
@@ -237,7 +238,7 @@ rule star:
 	output:
 		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
 		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
-	threads: THREADS
+	threads: 4
 	params:
 		output_folder=MAPPING_OUTDIR + "/{sample}_{replicate}"	
 	shell:
@@ -262,7 +263,7 @@ rule indexing:
 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	output:
 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai"
-	threads: THREADS
+	threads: 2
 	shell:
 		"samtools index {input}"
 
@@ -276,7 +277,7 @@ rule indexing:
 # 	output:
 # 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png",
 # 		file=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_data.txt"
-# 	threads: THREADS
+# 	threads: 2
 # 	conda:
 # 		"envs/deeptools.yml"
 # 	shell:
@@ -290,7 +291,7 @@ rule indexing:
 # 	output:
 # 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf",
 # 		report=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_report.txt"
-# 	threads: THREADS
+# 	threads: 2
 # 	conda:
 # 		"envs/picard.yml"
 # 	shell:
@@ -304,7 +305,7 @@ rule finger_print_plot:
 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
 	output:
 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
-	threads: THREADS
+	threads: 2
 	conda:
 		"envs/deeptools.yml"
 	shell:	
@@ -317,7 +318,7 @@ rule finger_print_plot:
 # 	output:
 # 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
 # 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
-# 	threads: THREADS
+# 	threads: 2
 # 	conda:
 # 		"envs/deeptools.yml"
 # 	shell:	
@@ -336,7 +337,7 @@ rule unique_reads_fitlering:
 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	output:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
-	threads: THREADS
+	threads: 2
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h {input} "
@@ -348,7 +349,7 @@ rule got_umis:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
 	output:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
-	threads: THREADS
+	threads: 2
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h {input} "
@@ -367,7 +368,7 @@ rule deduplication:
 		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
 		log=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_log.txt",
 		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-	threads: THREADS
+	threads: 2
 	conda:
 		"envs/umi.yml"
 	shell:
@@ -387,7 +388,7 @@ rule deduplication:
 #     output:
 #     	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html",
 #     	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.zip"
-#     threads: THREADS
+#     threads: 2
 #     conda:
 #     	"envs/fastqc.yml"
 #     shell:
@@ -406,7 +407,7 @@ rule peakachu:
     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
-    threads: THREADS
+    threads: 4
     conda:
     	"envs/peakachu.yml"
     params:
@@ -438,7 +439,7 @@ rule peak_calling_quality:
 		htseq_hits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt",
 		htseq_nohits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_nohits.txt",
 		reads_in_peaks=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_reads_summary.txt"
-	threads: THREADS
+	threads: 2
 	conda:
 		"envs/htseq.yml"
 	shell:
@@ -456,7 +457,7 @@ rule peak_calling_quality:
 #     	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
 #     output:
 #     	COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
-#     threads: THREADS 
+#     threads: 2 
 #     shell:
 #     	"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
 #     	"&& python {config[bctools]}/extract_aln_ends.py {input} > {output}"
@@ -466,7 +467,7 @@ rule peak_calling_quality:
 #     	COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
 #     output:
 #     	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
-#     threads: THREADS
+#     threads: 2
 #     shell:
 #     	"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
 #     	"&& python {config[bctools]}/coords2clnt.py {input} > {output}"
@@ -477,7 +478,7 @@ rule peak_calling_quality:
 #     	cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
 #     output:
 #     	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed"
-#     threads: THREADS
+#     threads: 2
 #     shell:
 #     	"bedtools intersect -a {input.cl} -b {input.peaks} -s -u -wa  > {output}"
 
@@ -502,7 +503,7 @@ rule peak_calling_quality:
 # 	output:
 # 		cl=expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
 # 		alends=expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
-# 	threads: THREADS
+# 	threads: 2
 # 	shell:
 # 		"bedtools sort -i {input.cl} > {output.cl}"
 # 		"&& bedtools sort -i {input.alends} > {output.alends}"
@@ -518,7 +519,7 @@ rule peak_calling_quality:
 # 		alends_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_pos_strand.bedgraph",
 # 		alends_ned=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_neg_strand.bedgraph",
 # 		alends_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_both_strand.bedgraph"
-# 	threads: THREADS
+# 	threads: 4
 # 	shell:
 # 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
 # 		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.cl_pos}" 
@@ -533,7 +534,7 @@ rule peak_calling_quality:
 # 		COVERAGE_OUTDIR + "/*.bedgraph"
 # 	output:
 # 		COVERAGE_OUTDIR + "/bigwig"
-# 	threads: THREADS
+# 	threads: 4
 # 	shell:
 # 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
 # 		"&& grep -v '^track' {input} | wigToBigWig stdin  {REF_GENOME_DIR}/hg19_chr_sizes.txt {input} -clip 2>&1 || echo 'Error running wigToBigWig.' >&2"
@@ -547,7 +548,7 @@ rule peaks_tsv_to_bed:
 		PEAKCALLING_OUTDIR + "/peakachu.tsv"
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu.bed"
-	threads: THREADS
+	threads: 2
 	shell:
 		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
 		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
@@ -558,7 +559,7 @@ rule peaks_extend_frontiers:
 		genome=REF_GENOME_DIR + "/hg19_chr_sizes.txt"
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-	threads: THREADS
+	threads: 2
 	params:
 		nucleotides=20
 	shell:
@@ -573,100 +574,100 @@ rule extract_genomic_DNA_dreme:
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-	threads: THREADS
+	threads: 2
 	shell:
 		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
 		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
-# rule dreme:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-# 	output:
-# 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/dreme.yml"
-# 	params:
-# 		num_motifs=10,
-# 		min_motif_size=5,
-# 		max_motif_size=20
-# 	shell:
-# 		"dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
-# 		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
+rule dreme:
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+ 	output:
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
+ 	threads: 4
+ 	conda:
+ 		"envs/dreme.yml"
+ 	params:
+ 		num_motifs=10,
+ 		min_motif_size=5,
+ 		max_motif_size=20
+ 	shell:
+ 		"dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
+ 		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
 
 rule meme_chip:
 	input: 
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
-	threads: THREADS
+	threads: 4
 	conda:
 		"envs/meme_suite.yml"
 	shell:
 		"meme-chip {input} -noecho -dna -oc {MOTIF_DETECTION_OUTDIR}/meme_chip -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 "
 		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
 
-# rule cross_random_subsampling_for_meme:
-# 	input:
-# 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-# 	output:
-# 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
-# 	params:
-# 		n_peaks=1000,
-# 		seed_value=123
-# 	run:
-# 		lines = open(str(input)).read().splitlines()
-# 		header = lines[0]
-# 		lines = lines[1:]
-# 		if params.seed_value != -1:
-# 			random.seed(params.seed_value)
-# 		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR}/meme ]; then mkdir {MOTIF_DETECTION_OUTDIR}/meme; else rm -r {MOTIF_DETECTION_OUTDIR}/meme && mkdir {MOTIF_DETECTION_OUTDIR}/meme; fi")
-# 		for i in range(0, len(PEAK_FILES_FOR_MEME)):
-# 			peak_file = "peak_random_sample_" + str(i+1) 
-# 			complet_path_to_peak_file = MOTIF_DETECTION_OUTDIR + "/meme/" + peak_file
-# 			shell("if [ ! -d {complet_path_to_peak_file} ]; then mkdir {complet_path_to_peak_file}; else rm -r {complet_path_to_peak_file} && mkdir {complet_path_to_peak_file}; fi")
-# 			outfile = open(str(complet_path_to_peak_file + "/" + peak_file + ".bed"),"w") 
-# 			outfile.write(header + "\n")
-# 			choices = random.sample(lines, params.n_peaks)
-# 			for l in choices[:-1]:			
-# 				outfile.write(l + "\n")
-# 			outfile.write(choices[-1])
-# 			outfile.close()
+rule cross_random_subsampling_for_meme:
+ 	input:
+ 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+ 	output:
+ 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
+ 	params:
+ 		n_peaks=1000,
+ 		seed_value=123
+ 	run:
+ 		lines = open(str(input)).read().splitlines()
+ 		header = lines[0]
+ 		lines = lines[1:]
+ 		if params.seed_value != -1:
+ 			random.seed(params.seed_value)
+ 		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR}/meme ]; then mkdir {MOTIF_DETECTION_OUTDIR}/meme; else rm -r {MOTIF_DETECTION_OUTDIR}/meme && mkdir {MOTIF_DETECTION_OUTDIR}/meme; fi")
+ 		for i in range(0, len(PEAK_FILES_FOR_MEME)):
+ 			peak_file = "peak_random_sample_" + str(i+1) 
+ 			complet_path_to_peak_file = MOTIF_DETECTION_OUTDIR + "/meme/" + peak_file
+ 			shell("if [ ! -d {complet_path_to_peak_file} ]; then mkdir {complet_path_to_peak_file}; else rm -r {complet_path_to_peak_file} && mkdir {complet_path_to_peak_file}; fi")
+ 			outfile = open(str(complet_path_to_peak_file + "/" + peak_file + ".bed"),"w") 
+ 			outfile.write(header + "\n")
+ 			choices = random.sample(lines, params.n_peaks)
+ 			for l in choices[:-1]:			
+ 				outfile.write(l + "\n")
+ 			outfile.write(choices[-1])
+ 			outfile.close()
 
-# rule extract_genomic_DNA_meme:
-# 	input:
-# 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed"
-# 	output:
-# 		bed3=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed3",
-# 		fa=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
-# 	threads: THREADS
-# 	shell:
-# 		"""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {output.bed3}"""
-# 		"&& python {config[extract_genomic_dna]}/fetch_DNA_sequence.py -o {output.fa} {output.bed3} {REF_GENOME_DIR}/hg19_2.fa"
+rule extract_genomic_DNA_meme:
+ 	input:
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed"
+ 	output:
+ 		bed3=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed3",
+ 		fa=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
+ 	threads: 2
+ 	shell:
+ 		"""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {output.bed3}"""
+ 		"&& python {config[extract_genomic_dna]}/fetch_DNA_sequence.py -o {output.fa} {output.bed3} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
-# rule meme:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
-# 	output:
-# 		output_dir=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output"
-# 	conda:
-# 		"envs/meme_suite.yml"
-# 	threads: THREADS
-# 	params:
-# 		num_motifs=10,
-# 		min_motif_size=5,
-# 		max_motif_size=20
-# 	run:
-# 		"meme {input} -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
-# 		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {output.output_dir}"
+rule meme:
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
+ 	output:
+ 		output_dir=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output"
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	threads: 4
+ 	params:
+ 		num_motifs=10,
+ 		min_motif_size=5,
+ 		max_motif_size=20
+ 	shell:
+ 		"meme {input} -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
+ 		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {output.output_dir}"
 
 # rule rcas:
 # 	input:
 # 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 # 	output:
 # 		MOTIF_DETECTION_OUTDIR + "/rcas/rcas_summary.html"
-# 	threads: THREADS
+# 	threads: 4
 # 	shell:
 # 		"if [ ! -d {MOTIF_DETECTION_OUTDIR}/rcas ]; then mkdir {MOTIF_DETECTION_OUTDIR}/rcas; fi"
 # 		"&& Rscript " + config["rcas"] + "/RCAS.R {input} {REF_GENOME_DIR}/Ensembl_Homo_sapiens.GRCh37.74.gtf ... 'hg19' {SRC_PATH}/{MOTIF_DETECTION_OUTDIR}/rcas 0 "
@@ -676,30 +677,30 @@ rule meme_chip:
 # ## MOTIF SEARCH ##
 # ##################
 
-# rule fimo_for_dreme_output:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
-# 	output:
-# 		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
-# 		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
-# 		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
-# 		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/meme_suite.yml"
-# 	shell:
-# 		"if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; fi"
-# 		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
-# 		"--oc {MOTIF_SEARCH_OUTDIR}/fimo_dreme {input} {REF_GENOME_DIR}/hg19_2.fa"
+rule fimo_for_dreme_output:
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
+ 	output:
+ 		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
+ 		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
+ 		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
+ 		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
+ 	threads: 4
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	shell:
+ 		"if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; fi"
+ 		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+ 		"--oc {MOTIF_SEARCH_OUTDIR}/fimo_dreme {input} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
-# rule motif_search_for_meme_output:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml"
-# 	output:
-# 		MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output"
-# 	threads: THREADS
-# 	conda:
-# 		"envs/meme_suite.yml"
-# 	shell:
-# 		"fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
-# 		"--oc {output} {input} {REF_GENOME_DIR}/hg19_2.fa"
+rule fimo_for_meme_output:
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml"
+ 	output:
+ 		MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output"
+ 	threads: 4
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	shell:
+ 		"fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+ 		"--oc {output} {input} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
