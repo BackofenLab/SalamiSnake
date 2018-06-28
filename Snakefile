@@ -101,15 +101,22 @@ rule all:
 		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
 		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		# expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		PEAKCALLING_OUTDIR + "/peakachu.tsv",
 		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed",
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa",
+		expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=REPLICATES_CLIP),
+		expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html",
 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html",
- 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME),
+ 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml", peak_file=PEAK_FILES_FOR_MEME),
  		MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
  		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
 
@@ -139,10 +146,6 @@ rule renaming:
 			shell("cp " + input[i] + " " + output.file[i] + 
 			"&& echo " + input[i] + " \t " + output.file[i] + " >> {output.log}")
 
-##############
-## RENAMING ##
-##############
-
 rule fastqc_first:
     input:
     	RENAMING + "/{sample}.fastqsanger"
@@ -161,7 +164,6 @@ rule cutadapt_first_read_clip:
 		first=RENAMING + "/{samples}_{replicate}_r1.fastqsanger",
 		second=RENAMING + "/{samples}_{replicate}_r2.fastqsanger"
 	output:
-		seq_first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1_tmp.fastqsanger",
 		seq_first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1_tmp.fastqsanger",
 		seq_second=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r2_tmp.fastqsanger",
 		log=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1.txt"
@@ -355,6 +357,17 @@ rule got_umis:
 		"&& samtools view -h {input} "
 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{ print $0; }} else {{split($1,str,":"); $1=str[2]":"str[3]":"str[4]":"str[5]":"str[6]":"str[7]":"str[8]"_"str[1]; print $0; }} }}' """
 		"| samtools view -bSh > {output}"
+
+rule filter_out_unlocalized_regions_for_later_genome_versions:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	output:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
+	threads: 2
+	shell:
+		"samtools view -h {input} "
+		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """
+		"| samtools view -bSh > {output}"
 		"&& samtools index {output}"
  
 ###################
@@ -363,7 +376,7 @@ rule got_umis:
 
 rule deduplication:
 	input:
-		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 	output:
 		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
 		log=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_log.txt",
@@ -372,32 +385,31 @@ rule deduplication:
 	conda:
 		"envs/umi.yml"
 	shell:
-		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi"
+		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi "
 		"&& umi_tools dedup --random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --paired " 
 		"--soft-clip-threshold 4 --subset 1.0 -I {input} -S {output.bam} -L {output.log}"
 		"&& samtools sort {output.bam} > {output.sorted_bam}"
 		"&& samtools index {output.sorted_bam}"
 
-# ############################
-# ## SECOND QUALITY CONTROL ##
-# ############################
+############################
+## SECOND QUALITY CONTROL ##
+############################
 
-# rule fastqc_second:
-#     input:
-#     	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
-#     output:
-#     	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.html",
-#     	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}.fastqsanger_fastqc.zip"
-#     threads: 2
-#     conda:
-#     	"envs/fastqc.yml"
-#     shell:
-#     	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; else rm -r {FASTQC_SECOND_OUTDIR} && mkdir {FASTQC_SECOND_OUTDIR}; fi"
-#     	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
+rule fastqc_second:
+    input:
+    	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
+    output:
+    	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html"
+    threads: 2
+    conda:
+    	"envs/fastqc.yml"
+    shell:
+    	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; fi"
+    	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
 
-# #################
-# ## PEAKCALLING ##
-# #################
+#################
+## PEAKCALLING ##
+#################
 
 rule peakachu:
     input:
@@ -448,96 +460,117 @@ rule peak_calling_quality:
 		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
 		"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_peaks}"""
 
-# ###############################
-# ## COUNTING / COVERAGE FILES ##
-# ###############################
+###############################
+## COUNTING / COVERAGE FILES ##
+###############################
 
-# rule extract_alignment_ends:
-#     input:
-#     	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-#     output:
-#     	COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
-#     threads: 2 
-#     shell:
-#     	"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
-#     	"&& python {config[bctools]}/extract_aln_ends.py {input} > {output}"
+rule extract_alignment_ends:
+	input:
+		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+	output:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	conda:
+		"envs/bctools.yml"
+	threads: 2 
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
+		"&& python {config[bctools]}/extract_aln_ends.py {input} > {output}"
 
-# rule extract_crosslinking_position:
-#     input:
-#     	COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
-#     output:
-#     	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
-#     threads: 2
-#     shell:
-#     	"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
-#     	"&& python {config[bctools]}/coords2clnt.py {input} > {output}"
+rule extract_crosslinking_position:
+	input:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	output:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
+	conda:
+		"envs/bctools.yml"
+	threads: 2
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
+		"&& python {config[bctools]}/coords2clnt.py {input} > {output}"
 
-# rule intersect_crosslink_sites_with_peaks:
-#     input:
-#     	peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-#     	cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
-#     output:
-#     	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed"
-#     threads: 2
-#     shell:
-#     	"bedtools intersect -a {input.cl} -b {input.peaks} -s -u -wa  > {output}"
+rule intersect_crosslink_sites_with_peaks:
+    input:
+    	peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+    	cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
+    output:
+    	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed"
+    threads: 2
+    shell:
+    	"bedtools intersect -a {input.cl} -b {input.peaks} -s -u -wa  > {output}"
 
-# rule crosslink_sites_quality:
-# 	input:
-# 		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES),
-# 		ind=expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=ALL_REPLICATES)
-# 	output:
-# 		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=ALL_REPLICATES)
-# 	run:
-# 		for i in range(0,len(input.cl)):
-# 			total_crosslinking_events = sum(1 for line in open(input.cl[i]))
-# 			crosslinking_events_in_peaks = sum(1 for line in open(input.ind[i]))
-# 			shell("echo 'total crosslink sites: ' " + str(total_crosslinking_events) + " > " + output[i] + 
-# 			"&& echo 'crosslink sites in peaks: ' " + str(crosslinking_events_in_peaks) + " >> " + output[i] + 
-# 			"&& echo 'percentage of crosslinking sites in peaks: ' " + str(crosslinking_events_in_peaks/total_crosslinking_events) + " >> " + output[i])
+rule crosslink_sites_quality:
+	input:
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=REPLICATES_CLIP),
+		ind=expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=REPLICATES_CLIP)
+	output:
+		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=REPLICATES_CLIP)
+	run:
+		for i in range(0,len(input.cl)):
+			total_crosslinking_events = sum(1 for line in open(input.cl[i]))
+			crosslinking_events_in_peaks = sum(1 for line in open(input.ind[i]))
+			shell("echo 'total crosslink sites: ' " + str(total_crosslinking_events) + " > " + output[i] + 
+			"&& echo 'crosslink sites in peaks: ' " + str(crosslinking_events_in_peaks) + " >> " + output[i] + 
+			"&& echo 'percentage of crosslinking sites in peaks: ' " + str(crosslinking_events_in_peaks/total_crosslinking_events) + " >> " + output[i])
 
-# rule sort_beds:
-# 	input:
-# 		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed",
-# 		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
-# 	output:
-# 		cl=expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
-# 		alends=expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
-# 	threads: 2
-# 	shell:
-# 		"bedtools sort -i {input.cl} > {output.cl}"
-# 		"&& bedtools sort -i {input.alends} > {output.alends}"
+rule correct_bed_format_check:
+	input:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	output:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_check.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_check.bed"
+	threads: 2
+	shell:
+		"""awk -F "\t" 'BEGIN {{ OFS = FS }} $3 != 0 {{ print $0 }}' {input.cl} > {output.cl} """
+		"""&& awk -F "\t" 'BEGIN {{ OFS = FS }} $3 != 0 {{ print $0 }}' {input.alends} > {output.alends} """
 
-# rule calculate_coverage:
-# 	input:
-# 		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
-# 		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
-# 	output:
-# 		cl_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph",
-# 		cl_neg=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_neg_strand.bedgraph",
-# 		cl_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_both_strands.bedgraph",
-# 		alends_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_pos_strand.bedgraph",
-# 		alends_ned=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_neg_strand.bedgraph",
-# 		alends_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_both_strand.bedgraph"
-# 	threads: 4
-# 	shell:
-# 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
-# 		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.cl_pos}" 
-# 		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.cl_neg}" 
-# 		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.cl_bot}" 
-# 		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.alends_pos}"
-# 		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.alends_ned}" 
-# 		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.alends_bot}" 
+rule sort_beds:
+	input:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_check.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_check.bed"
+	output:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
+	threads: 2
+	shell:
+		"bedtools sort -i {input.cl} > {output.cl}"
+		"&& bedtools sort -i {input.alends} > {output.alends}"
 
-# rule calculate_coverage:
-# 	input:
-# 		COVERAGE_OUTDIR + "/*.bedgraph"
-# 	output:
-# 		COVERAGE_OUTDIR + "/bigwig"
-# 	threads: 4
-# 	shell:
-# 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
-# 		"&& grep -v '^track' {input} | wigToBigWig stdin  {REF_GENOME_DIR}/hg19_chr_sizes.txt {input} -clip 2>&1 || echo 'Error running wigToBigWig.' >&2"
+rule calculate_coverage:
+	input:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
+	output:
+		cl_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph",
+		cl_neg=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_neg_strand.bedgraph",
+		cl_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_both_strand.bedgraph",
+		alends_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_pos_strand.bedgraph",
+		alends_ned=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_neg_strand.bedgraph",
+		alends_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_both_strand.bedgraph"
+	threads: 4
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.cl_pos}" 
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.cl_neg}" 
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.cl_bot}" 
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.alends_pos}"
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.alends_ned}" 
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.alends_bot}" 
+
+rule calculate_coverage_bigwig:
+	input:
+		cl=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bedgraph",
+		alends=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bedgraph"
+	output:
+		cl=COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig",
+		alends=COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig"
+	threads: 4
+	conda:
+		"envs/bedGraphToBigWig.yml"
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
+		"&& bedGraphToBigWig {input.cl} {REF_GENOME_DIR}/hg19_chr_sizes.txt {output.cl}"
+		"&& bedGraphToBigWig {input.alends} {REF_GENOME_DIR}/hg19_chr_sizes.txt {output.alends}"
 
 ##############################
 ## POST-PROCESSING OF PEAKS ##
@@ -584,7 +617,8 @@ rule dreme:
  	input: 
  		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
  	output:
- 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html",
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
  	threads: 4
  	conda:
  		"envs/dreme.yml"
@@ -593,7 +627,7 @@ rule dreme:
  		min_motif_size=5,
  		max_motif_size=20
  	shell:
- 		"dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
+ 		"python2 {config[dreme]}/dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
  		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
 
 rule meme_chip:
@@ -650,17 +684,18 @@ rule meme:
  	input: 
  		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
  	output:
- 		output_dir=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output"
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml"
  	conda:
  		"envs/meme_suite.yml"
  	threads: 4
  	params:
  		num_motifs=10,
  		min_motif_size=5,
- 		max_motif_size=20
+ 		max_motif_size=20,
+ 		output_dir=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output"
  	shell:
  		"meme {input} -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
- 		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {output.output_dir}"
+ 		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {params.output_dir}"
 
 # rule rcas:
 # 	input:
@@ -681,10 +716,7 @@ rule fimo_for_dreme_output:
  	input: 
  		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
  	output:
- 		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
- 		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
- 		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
- 		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
+ 		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html"
  	threads: 4
  	conda:
  		"envs/meme_suite.yml"
