@@ -1,0 +1,11 @@
+name: ucsc-bedgraphtobigwig
+channels:
+  - bioconda
+dependencies:
+    - libgcc
+    - libpng
+    - libuuid
+    - mysql-connector-c
+    - openssl
+    - zlib=1.2.11*
+

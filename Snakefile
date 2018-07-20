@@ -6,8 +6,7 @@ SRC_PATH = os.getcwd()
 
 configfile: "config.yml"
 
-# REF_GENOME_DIR="/scratch/bi01/heylf/genomes/hg19"
-REF_GENOME_DIR="genomes/hg19"
+REF_GENOME_DIR="/scratch/bi03/heylf/genomes/hg19"
 
 ###############
 ## FUNCTIONS ##
@@ -54,13 +53,22 @@ for i in range(0,5):
 	peak_file = "peak_random_sample_" + str(i+1)
 	PEAK_FILES_FOR_MEME[i] = peak_file + "/" + peak_file
 
+PAIR = ["r1", "r2"]
+REP_NAME_CLIP = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CLIP))]
+REP_NAME_CONTROL = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CONTROL))]
+SAMPLES = [REPLICATES_CLIP[0].split("_")[0], REPLICATES_CONTROL[0].split("_")[0]]
+
+print(SAMPLES)
+
 ######################
 ## PATH DEFINITIONS ##
 ######################
 
+RENAMING = config['sample_data_dir'] + "/" + config['renaming_outdir']
 FASTQC_FIRST_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_first_outdir']
 CUTADAPT_OUTDIR = config['sample_data_dir'] + "/" + config['cutadapt_outdir']
 TRIMGALORE_OUTDIR = config['sample_data_dir'] + "/" + config['trim_galore_outdir']
+REMOVE_TAIL_OUTDIR = config['sample_data_dir'] + "/" + config['remove_tail_outdir']
 MAPPING_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_outdir']
 MAPPING_QUALITY_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_quality_outdir']
 PRE_FOR_UMI_OUTDIR = config['sample_data_dir'] + "/" + config['preprocessing_for_umi_outdir']
@@ -73,83 +81,149 @@ MOTIF_DETECTION_OUTDIR = config['sample_data_dir'] + "/" + config['motif_detecti
 MOTIF_SEARCH_OUTDIR = config['sample_data_dir'] + "/" + config['motif_search_outdir']
 
 ###################
-## PREPROCESSINg ##
+## PREPROCESSING ##
 ###################
 
-# rule all:
-#   input: MAPPING_OUTDIR + "/{sample}.sam"
+rule all:
+	input: 
+		expand(CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
+		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
+		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
+		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		PEAKCALLING_OUTDIR + "/peakachu.tsv",
+		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed",
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa",
+		expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=REPLICATES_CLIP),
+		expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
+		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html",
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html",
+ 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml", peak_file=PEAK_FILES_FOR_MEME),
+ 		MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
+ 		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
+
+
+ALL_NEW_FILE_NAMES = ["none"] * ((len(REPLICATES_CLIP) + len(REPLICATES_CONTROL)) * 2)
+i = 0 
+for j in REP_NAME_CLIP:
+	for k in PAIR:
+		ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[0] + "_" + j + "_" + k + ".fastqsanger"
+		i += 1
+
+for j in REP_NAME_CONTROL:
+	for k in PAIR:
+		ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[1] + "_" + j + "_" + k + ".fastqsanger"
+		i += 1
+
+rule renaming:
+	input:
+		expand(config['sample_data_dir'] + "/{all}.fastqsanger", all=ALL_SAMPLES)
+	output:
+		file=ALL_NEW_FILE_NAMES,
+		log=RENAMING + "/renaming_log.txt"
+	run:
+		shell("if [ ! -d {RENAMING} ]; then mkdir {RENAMING}; fi "
+		"&& echo 'original_name \t new_name' > {output.log}")
+		for i in range(0, len(input)): 
+			shell("cp " + input[i] + " " + output.file[i] + 
+			"&& echo " + input[i] + " \t " + output.file[i] + " >> {output.log}")
 
 rule fastqc_first:
     input:
-    	expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=ALL_SAMPLES)
+    	RENAMING + "/{sample}.fastqsanger"
     output:
-    	expand(FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.html", sample=ALL_SAMPLES),
-    	expand(FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.zip", sample=ALL_SAMPLES)
+    	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.html",
+    	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.zip"
+    threads: 2
     conda:
     	"envs/fastqc.yml"
     shell:
-    	"if [ ! -d {FASTQC_FIRST_OUTDIR} ]; then mkdir {FASTQC_FIRST_OUTDIR}; else rm -r {FASTQC_FIRST_OUTDIR} && mkdir {FASTQC_FIRST_OUTDIR}; fi"
+    	"if [ ! -d {FASTQC_FIRST_OUTDIR} ]; then mkdir {FASTQC_FIRST_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_FIRST_OUTDIR}"
 
-rule cutadapt_first_read_clip:
+rule cutadapt_adapter_trimming:
 	input:
-		first=expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=FIRST_READS),
-		second=expand(config['sample_data_dir'] + "/{sample}.fastqsanger", sample=SECOND_READS)
+		first=RENAMING + "/{sample}_{replicate}_r1.fastqsanger",
+		second=RENAMING + "/{sample}_{replicate}_r2.fastqsanger"
 	output:
-		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=FIRST_READS),
-		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=SECOND_READS),
-		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=FIRST_READS)
+		seq_first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1_tmp.fastqsanger",
+		seq_second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2_tmp.fastqsanger",
+		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}_tmp.txt"
+	threads: 8 
 	conda:
 		"envs/cutadapt.yml"
-	run:
-		shell("if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; else rm -r {CUTADAPT_OUTDIR} && mkdir {CUTADAPT_OUTDIR}; fi")
-		for i in range(0,len(input.first)):
-			shell("cutadapt --format=fastq  --error-rate=0.1 --times=1 --overlap=5 " 
-			"--front='CTTCCGATCTACAAGTT' --front='CTTCCGATCTTGGTCCT' " 
-			"--paired-output=" + output.seq_second[i] + " "
-			"--output=" + output.seq_first[i] + " " + input.first[i] + " " + input.second[i] +  " > " + output.log[i])
+	shell:
+		"if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; fi"
+		"&& cutadapt -j {threads} --error-rate=0.1 --times=1 --overlap=5 " 
+		"-a AACTTGTAGATCGGA -a AGGACCAAGATCGGA -a ACTTGTAGATCGGAA -a GGAAGAGCGTCGTGT "
+		"-a GGACCAAGATCGGAA -a CTTGTAGATCGGAAG -a GACCAAGATCGGAAG -a TTGTAGATCGGAAGA "
+		"-a ACCAAGATCGGAAGA -a TGTAGATCGGAAGAG -a CCAAGATCGGAAGAG -a GTAGATCGGAAGAGC "
+		"-a CAAGATCGGAAGAGC -a TAGATCGGAAGAGCG -a AAGATCGGAAGAGCG -a AGATCGGAAGAGCGT "
+		"-a GATCGGAAGAGCGTC -a ATCGGAAGAGCGTCG -a TCGGAAGAGCGTCGT -a CGGAAGAGCGTCGTG "
+		"-g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT "
+		"-A AACTTGTAGATCGGA -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGAAGAGCGTCGTGT "
+		"-A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA "
+		"-A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC "
+		"-A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT "
+		"-A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG "
+		"-G CTTCCGATCTACAAGTT -G CTTCCGATCTTGGTCCT "
+		"-m 10 --paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
 
-rule cutadapt_second_read_clip:
+rule cutadapt_barcode_trimming:
 	input:
-		first=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=FIRST_READS),
-		second=expand(CUTADAPT_OUTDIR + "/{sample}_tmp.fastqsanger", sample=SECOND_READS)
+		first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1_tmp.fastqsanger",
+		second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2_tmp.fastqsanger"
 	output:
-		seq_first=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
-		seq_second=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS),
-		log=expand(CUTADAPT_OUTDIR + "/{sample}.txt", sample=SECOND_READS)
-	conda:
-		"envs/cutadapt.yml"
-	run:
-		for i in range(0,len(input.second)):
-			shell("cutadapt --format=fastq --error-rate=0.1 --times=1 --overlap=5 " 
-			"--adapter='AACTTGTAGATCGGA' --adapter='AGGACCAAGATCGGA' --adapter='ACTTGTAGATCGGAA' --adapter='GGAAGAGCGTCGTGT' "
-			"--adapter='GGACCAAGATCGGAA' --adapter='CTTGTAGATCGGAAG' --adapter='GACCAAGATCGGAAG' --adapter='TTGTAGATCGGAAGA' " 
-			"--adapter='ACCAAGATCGGAAGA' --adapter='TGTAGATCGGAAGAG' --adapter='CCAAGATCGGAAGAG' --adapter='GTAGATCGGAAGAGC' " 
-			"--adapter='CAAGATCGGAAGAGC' --adapter='TAGATCGGAAGAGCG' --adapter='AAGATCGGAAGAGCG' --adapter='AGATCGGAAGAGCGT' " 
-			"--adapter='GATCGGAAGAGCGTC' --adapter='ATCGGAAGAGCGTCG' --adapter='TCGGAAGAGCGTCGT' --adapter='CGGAAGAGCGTCGTG' "
-			"--paired-output=" + output.seq_first[i] + " "      
-			"--output=" + output.seq_second[i] + " " + input.second[i] + " " + input.first[i] + " > " + output.log[i] + 
-			"&& rm " + input.second[i] + 
-			"&& rm " + input.first[i])
-
-rule trim_galore_clip:
-	input:
-		first_read=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
-		second_read=expand(CUTADAPT_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
+		seq_first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+		seq_second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
+		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}.txt"
+	threads: 8 
 	params:
-		cut_n_bases=5
-	output:
-		first_read_out=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
-		second_read_out=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
+ 		cut_n_bases=-5
 	conda:
-		"envs/trim_galore.yml"
-	run:
-		shell("if [ ! -d {TRIMGALORE_OUTDIR} ]; then mkdir {TRIMGALORE_OUTDIR}; else rm -r {TRIMGALORE_OUTDIR} && mkdir {TRIMGALORE_OUTDIR}; fi")
-		for i in range(0,len(input.first_read)):
-			shell("trim_galore --phred33 --suppress_warn --three_prime_clip_R1 {params.cut_n_bases} --paired --dont_gzip "
-			"--output_dir {TRIMGALORE_OUTDIR} " + input.first_read[i] + " " + input.second_read[i] + " " + 
-			"&& mv " + output.first_read_out[i] + "_val_1.fq " + output.first_read_out[i] + " " + 
-			"&& mv " + output.second_read_out[i] + "_val_2.fq " + output.second_read_out[i])
+		"envs/cutadapt.yml"
+	shell:
+		"cutadapt -j {threads} --format=fastq  --error-rate=0.1 --times=1 --overlap=5 -u {params.cut_n_bases} -m 10 "
+		"--paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
+
+# rule trim_galore_clip:
+# 	input:
+# 		first_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+# 		second_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
+# 	output:
+# 		first_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+# 		second_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
+# 	threads: 2
+# 	params:
+# 		cut_n_bases=5
+# 	conda:
+# 		"envs/trim_galore.yml"
+# 	shell:
+# 		"if [ ! -d {TRIMGALORE_OUTDIR} ]; then mkdir {TRIMGALORE_OUTDIR}; fi"
+# 		"&& trim_galore --phred33 --suppress_warn --three_prime_clip_R1 {params.cut_n_bases} --paired --dont_gzip "
+# 		"--output_dir {TRIMGALORE_OUTDIR} {input.first_read} {input.second_read}"
+# 		"&& mv {output.first_read_out}_val_1.fq {output.first_read_out}" 
+# 		"&& mv {output.second_read_out}_val_2.fq {output.second_read_out}"
 
 #############
 ## MAPPING ##
@@ -161,101 +235,47 @@ rule star_generate_index_for_genome:
 		annotation=REF_GENOME_DIR + "/Genocode_hg19.gtf"
 	output:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
-	threads: 20
-	conda:
-		"envs/star.yml"
+	threads: 4
 	shell:
-		"STAR --runThreadN {thread} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} --genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
+		"if [ -d {config[sample_data_dir]}/STAR_tmp_Index ]; then rm -r {config[sample_data_dir]}/STAR_tmp_Index; fi "
+		"&& STAR --outTmpDir {config[sample_data_dir]}/STAR_tmp_Index --runThreadN {threads} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} "
+		"--genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
 
 rule star:
 	input:
-		first_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=FIRST_READS),
-		second_read=expand(TRIMGALORE_OUTDIR + "/{sample}.fastqsanger", sample=SECOND_READS)
+		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+		second_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
 	output:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-	threads: 20
-	conda:
-		"envs/star.yml"
-	run:
-		shell("if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; else rm -r {MAPPING_OUTDIR} && mkdir {MAPPING_OUTDIR}; fi")
-		for i in range(0,len(input.first_read)):
-			shell("STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
-			"--readFilesIn " + input.first_read[i] + " " + input.second_read[i] + " "  
-			"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
-			"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
-			"--outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' " 
-			"--outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' " 
-			"--seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' " 
-			"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
-			"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' " 
-			"--twopass1readsN '-1'   --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' > " + output[i])
+		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
+		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+	threads: 4
+	params:
+		output_folder=MAPPING_OUTDIR + "/{sample}_{replicate}"	
+	shell:
+		"if [ ! -d {MAPPING_OUTDIR} ]; then mkdir {MAPPING_OUTDIR}; fi "
+		"&& TIME=$(date +%N) "
+		"&& if [ -d {config[sample_data_dir]}/STAR_tmp_$TIME ]; then rm -r {config[sample_data_dir]}/STAR_tmp_$TIME; fi "
+		"&& STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
+		"--readFilesIn {input.first_read} {input.second_read} --outTmpDir {config[sample_data_dir]}/STAR_tmp_$TIME  --outFileNamePrefix {params.output_folder}_ "  
+		"--outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None " 
+		"--outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10' "
+		"--outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' " 
+		"--outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' " 
+		"--seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' " 
+		"--alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' " 
+		"--alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' " 
+		"--twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' > {output.log} "
+		"&& mv {params.output_folder}_Aligned.sortedByCoord.out.bam {output.bam} "
+		"&& rm -r {config[sample_data_dir]}/STAR_tmp_$TIME"
 
-#####################
-## MAPPING QUALITY ##
-#####################
-
-rule compute_gc_bias_plots:
+rule indexing:
 	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	output:
-		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_plot.png", sample=ALL_REPLICATES),
-		file=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_gc_bias_data.txt", sample=ALL_REPLICATES)
-	threads: 20
-	conda:
-		"envs/deeptools.yml"
-	run:
-		shell("if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; else rm -r {MAPPING_QUALITY_OUTDIR} && mkdir {MAPPING_QUALITY_OUTDIR}; fi")
-		for i in range(0,len(input)):
-			shell("samtools index " + input[i] + " "
-			"&& computeGCBias --numberOfProcessors {threads} "
-			"--bamfile " + input[i] + " --GCbiasFrequenciesFile " + output.file[i] + " --fragmentLength 300 "
-			"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 "
-			"--biasPlot " + output.plot[i] + " --plotFileFormat png")
-
-rule estimate_insert_size:
-	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-	output:
-		plot=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_plot.pdf", sample=ALL_REPLICATES),
-		report=expand(MAPPING_QUALITY_OUTDIR + "/{sample}_insert_size_report.txt", sample=ALL_REPLICATES)
-	conda:
-		"envs/picard.yml"
-	run:
-		for i in range(0,len(input)):
-			shell("picard CollectInsertSizeMetrics INPUT=" + input[i] + " OUTPUT=" + output.report[i] + 
-			" HISTOGRAM_FILE=" + output.plot[i] + " DEVIATIONS='10.0'   MINIMUM_PCT='0.05' REFERENCE_SEQUENCE={REF_GENOME_DIR}/hg19_2.fa ASSUME_SORTED='true' " 
-			" METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR")
-
-rule finger_print_plot:
-	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-	output:
-		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
-	threads: 20
-	conda:
-		"envs/deeptools.yml"
-	run:
-		for i in range(0,len(input)):
- 			shell("samtools index " + input[i])			
-		shell("plotFingerprint --numberOfProcessors {threads} --bamfiles {input} "
-		"--labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'")
-
-rule correlating_bam_files_plot:
-	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-	output:
-		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
-		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
-	threads: 20
-	conda:
-		"envs/deeptools.yml"
-	run:
-		for i in range(0,len(input)):
- 			shell("samtools index " + input[i])			
-		shell("multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
-		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
-		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
-		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'")
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai"
+	threads: 2
+	shell:
+		"samtools index {input}"
 
 ########################
 ## POST-MAP FILTERING ##
@@ -263,26 +283,103 @@ rule correlating_bam_files_plot:
 
 rule unique_reads_fitlering:
 	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	output:
-		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_unique_reads_fitlering.bam", sample=ALL_REPLICATES)
-	run:
-		shell("if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; else rm -r {PRE_FOR_UMI_OUTDIR} && mkdir {PRE_FOR_UMI_OUTDIR}; fi")
-		for i in range(0,len(input)):
-			shell("samtools view -h " +  input[i] + " | "
-			"awk '$0 ~ /^@/{{ print }} ($2 == 163 || $2 == 147 || $2 == 83 || $2 == 99)&&$0!~/XS:i/{{ print }} ' | " +  
-			"samtools view -bSh > " + output[i])
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
+	threads: 2
+	shell:
+		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
+		"&& samtools view -h {input} "
+		"| awk '$0 ~ /^@/{{ print }} ($2 == 163 || $2 == 147 || $2 == 83 || $2 == 99)&&$0!~/XS:i/{{ print }} ' "  
+		"| samtools view -bSh > {output}"
 
 rule got_umis:
 	input:
-		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_unique_reads_fitlering.bam", sample=ALL_REPLICATES)
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
 	output:
-		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_got_umis.bam", sample=ALL_REPLICATES)
-	run:
-		for i in range(0,len(input)):
-			shell("samtools view -h " +  input[i] + " | "
-			""" awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{ print $0; }} else {{split($1,str,":"); $1=str[2]":"str[3]":"str[4]":"str[5]":"str[6]":"str[7]":"str[8]"_"str[1]; print $0; }} }}' | """
-			"samtools view -bSh > " + output[i])
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	threads: 2
+	shell:
+		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
+		"&& samtools view -h {input} "
+		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{ print $0; }} else {{split($1,str,":"); $1=str[2]":"str[3]":"str[4]":"str[5]":"str[6]":"str[7]":"str[8]"_"str[1]; print $0; }} }}' """
+		"| samtools view -bSh > {output}"
+
+rule filter_out_unlocalized_regions_for_later_genome_versions:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	output:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
+	threads: 2
+	shell:
+		"samtools view -h {input} "
+		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """
+		"| samtools view -bSh > {output}"
+		"&& samtools index {output}"
+
+#####################
+## MAPPING QUALITY ##
+#####################
+
+rule compute_gc_bias_plots:
+	input:
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+	output:
+		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png",
+		file=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_data.txt"
+	threads: 2
+	conda:
+		"envs/deeptools.yml"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& computeGCBias --numberOfProcessors {threads} --bamfile {input} --GCbiasFrequenciesFile {output.file} --fragmentLength 300 "
+		"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 --biasPlot {output.plot} --plotFileFormat png"
+
+# for picard please conda install R
+rule estimate_insert_size:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	output:
+		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf",
+		report=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_report.txt"
+	threads: 2
+	conda:
+		"envs/picard.yml"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& source activate picard"
+		"&& picard CollectInsertSizeMetrics INPUT={input} OUTPUT={output.report} "
+		"HISTOGRAM_FILE={output.plot} DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' " 
+		"METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR "
+		"&& source deactivate"
+
+rule finger_print_plot:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
+	threads: 2
+	conda:
+		"envs/deeptools.yml"
+	shell:	
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} --labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
+
+# rule correlating_bam_files_plot:
+# 	input:
+# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+# 	output:
+# 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
+# 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+# 	threads: 10
+# 	conda:
+# 		"envs/deeptools.yml"
+# 	shell:	
+# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
+# 		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
+# 		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
+# 		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
+# 		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'"
  
 ###################
 ## DEDUPLICATION ##
@@ -290,21 +387,20 @@ rule got_umis:
 
 rule deduplication:
 	input:
-		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_got_umis.bam", sample=ALL_REPLICATES)
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 	output:
-		bam=expand(DEDUPLICAITON_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES),
-		log=expand(DEDUPLICAITON_OUTDIR + "/{sample}_log.txt", sample=ALL_REPLICATES),
-		sorted_bam=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
+		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
+		log=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_log.txt",
+		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+	threads: 2
 	conda:
-		"ennv/umi.yml"
-	run:
-		shell("if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; else rm -r {DEDUPLICAITON_OUTDIR} && mkdir {DEDUPLICAITON_OUTDIR}; fi")
-		for i in range(0,len(input)):
-			shell("samtools index " + input[i] + " "
-				"&& umi_tools dedup --random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --paired " 
-				"--soft-clip-threshold 4 --subset 1.0 -I " + input[i] + " -S " + output.bam[i] + " -L " + output.log[i] + " "
-				"&& samtools sort " + output.bam[i] + " > " +  output.sorted_bam[i] + " "
-				"&& samtools index " + output.sorted_bam[i])
+		"envs/umi.yml"
+	shell:
+		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi "
+		"&& umi_tools dedup --random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --paired " 
+		"--soft-clip-threshold 4 --subset 1.0 -I {input} -S {output.bam} -L {output.log}"
+		"&& samtools sort {output.bam} > {output.sorted_bam}"
+		"&& samtools index {output.sorted_bam}"
 
 ############################
 ## SECOND QUALITY CONTROL ##
@@ -312,14 +408,14 @@ rule deduplication:
 
 rule fastqc_second:
     input:
-    	expand(DEDUPLICAITON_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+    	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
     output:
-    	expand(FASTQC_SECOND_OUTDIR + "/{sample}.fastqsanger_fastqc.html", sample=ALL_REPLICATES),
-    	expand(FASTQC_SECOND_OUTDIR + "/{sample}.fastqsanger_fastqc.zip", sample=ALL_REPLICATES)
+    	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html"
+    threads: 2
     conda:
     	"envs/fastqc.yml"
     shell:
-    	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; else rm -r {FASTQC_SECOND_OUTDIR} && mkdir {FASTQC_SECOND_OUTDIR}; fi"
+    	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
 
 #################
@@ -334,6 +430,7 @@ rule peakachu:
     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
+    threads: 4
     conda:
     	"envs/peakachu.yml"
     params:
@@ -343,11 +440,13 @@ rule peakachu:
     	q_value_cutoff=0.05
     shell:
     	#"--max_proc "${GALAXY_SLOTS:-1}"
-    	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; else rm -r {PEAKCALLING_OUTDIR} && mkdir {PEAKCALLING_OUTDIR}; fi "
+    	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+    	"&& source activate peakachu"
     	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} "
     	"--paired_end --max_insert_size {params.insert_size} --features '' --sub_features '' "
     	"--output_folder {PEAKCALLING_OUTDIR} --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 "
-    	"--norm_method deseq --mad_multiplier {params.mad_multiplier} --fc_cutoff {params.fold_change_cutoff} --padj_threshold {params.q_value_cutoff} "
+    	"--norm_method deseq --mad_multiplier {params.mad_multiplier} --fc_cutoff {params.fold_change_cutoff} --padj_threshold {params.q_value_cutoff}"
+    	"&& source deactivate "
     	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
     	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
     	"&& rm tmp.tsv"
@@ -358,62 +457,64 @@ rule peakachu:
 rule peak_calling_quality:
 	input:
 		peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-		clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP)
+		clip=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
 	output:
-		htseq_hits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_hits.txt", sample=REPLICATES_CLIP),
-		htseq_nohits=expand(PEAKCALLING_OUTDIR + "/{sample}_htseq_nohits.txt", sample=REPLICATES_CLIP),
-		reads_in_peaks=expand(PEAKCALLING_OUTDIR + "/{sample}_reads_summary.txt", sample=REPLICATES_CLIP)
+		htseq_hits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt",
+		htseq_nohits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_nohits.txt",
+		reads_in_peaks=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_reads_summary.txt"
+	threads: 2
 	conda:
 		"envs/htseq.yml"
-	run:
-		for i in range(0,len(input.clip)):
-			shell("htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' "
-			"--order=name --format=bam " + input.clip[i] + " {input.peaks} "
-			"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > """ + 
-			output.htseq_hits[i] + """ 2> """ + output.htseq_nohits[i] + " "
-			"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
-			"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' """ + output.htseq_hits[i] + " " + output.htseq_nohits[i] +
-			" > " + output.reads_in_peaks[i] )
+	shell:
+		"htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' --order=name --format=bam {input.clip} {input.peaks} "
+		"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > {output.htseq_hits} 2> {output.htseq_nohits} """
+		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
+		"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_peaks}"""
 
 ###############################
 ## COUNTING / COVERAGE FILES ##
 ###############################
 
 rule extract_alignment_ends:
-    input:
-    	expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=ALL_REPLICATES)
-    output:
-    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
-    run:
-    	shell("if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; else rm -r {COVERAGE_OUTDIR} && mkdir {COVERAGE_OUTDIR}; fi")
-    	for i in range(0,len(input)):
-    		shell("python " + config["bctools"] + "/extract_aln_ends.py " + input[i] + " > " + output[i])
+	input:
+		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+	output:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	conda:
+		"envs/bctools.yml"
+	threads: 2 
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
+		"&& python {config[bctools]}/extract_aln_ends.py {input} > {output}"
 
 rule extract_crosslinking_position:
-    input:
-    	expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
-    output:
-    	expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES)
-    run:
-    	for i in range(0,len(input)):
-    		shell("python " + config["bctools"] + "/coords2clnt.py " + input[i] + " > " + output[i])
+	input:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	output:
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
+	conda:
+		"envs/bctools.yml"
+	threads: 2
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
+		"&& python {config[bctools]}/coords2clnt.py --threeprime {input} > {output}"
 
 rule intersect_crosslink_sites_with_peaks:
     input:
     	peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-    	cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES)
+    	cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed"
     output:
-    	expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=ALL_REPLICATES)
-    run:
-    	for i in range(0,len(input.cl)):
-    		shell("bedtools intersect -a " + input.cl[i] + " -b {input.peaks} -s -u -wa  > " + output[i])
+    	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed"
+    threads: 2
+    shell:
+    	"bedtools intersect -a {input.cl} -b {input.peaks} -s -u -wa  > {output}"
 
 rule crosslink_sites_quality:
 	input:
-		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES),
-		ind=expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=ALL_REPLICATES)
+		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=REPLICATES_CLIP),
+		ind=expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_intersecting_peaks.bed", sample=REPLICATES_CLIP)
 	output:
-		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=ALL_REPLICATES)
+		expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=REPLICATES_CLIP)
 	run:
 		for i in range(0,len(input.cl)):
 			total_crosslinking_events = sum(1 for line in open(input.cl[i]))
@@ -422,49 +523,65 @@ rule crosslink_sites_quality:
 			"&& echo 'crosslink sites in peaks: ' " + str(crosslinking_events_in_peaks) + " >> " + output[i] + 
 			"&& echo 'percentage of crosslinking sites in peaks: ' " + str(crosslinking_events_in_peaks/total_crosslinking_events) + " >> " + output[i])
 
+rule correct_bed_format_check:
+	input:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends.bed"
+	output:
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_check.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_check.bed"
+	threads: 2
+	shell:
+		"""awk -F "\t" 'BEGIN {{ OFS = FS }} $3 != 0 {{ print $0 }}' {input.cl} > {output.cl} """
+		"""&& awk -F "\t" 'BEGIN {{ OFS = FS }} $3 != 0 {{ print $0 }}' {input.alends} > {output.alends} """
+
 rule sort_beds:
 	input:
-		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions.bed", sample=ALL_REPLICATES),
-		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends.bed", sample=ALL_REPLICATES)
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_check.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_check.bed"
 	output:
-		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
-		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
-	run:
-		for i in range(0,len(input.cl)):
-			shell("bedtools sort -i " + input.cl[i] + " > " + output.cl[i] + " "
-			"&& bedtools sort -i " + input.alends[i] + " > " + output.alends[i])
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
+	threads: 2
+	shell:
+		"bedtools sort -i {input.cl} > {output.cl}"
+		"&& bedtools sort -i {input.alends} > {output.alends}"
 
 rule calculate_coverage:
 	input:
-		cl=expand(COVERAGE_OUTDIR + "/{sample}_crosslinking_positions_sorted.bed", sample=ALL_REPLICATES),
-		alends=expand(COVERAGE_OUTDIR + "/{sample}_alignment_ends_sorted.bed", sample=ALL_REPLICATES)
+		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
+		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
 	output:
-		cl_pos=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_pos_strand.bedgraph", sample=ALL_REPLICATES),
-		cl_neg=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_neg_strand.bedgraph", sample=ALL_REPLICATES),
-		cl_bot=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_crosslinking_coverage_both_strands.bedgraph", sample=ALL_REPLICATES),
-		alends_pos=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_pos_strand.bedgraph", sample=ALL_REPLICATES),
-		alends_ned=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_neg_strand.bedgraph", sample=ALL_REPLICATES),
-		alends_bot=expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_alignment_ends_coverage_both_strand.bedgraph", sample=ALL_REPLICATES)
-	run:
-		shell("if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; else rm -r {COVERAGE_OUTDIR}/bedgraph && mkdir {COVERAGE_OUTDIR}/bedgraph; fi")
-		for i in range(0,len(input.cl)):
-			shell(
-			"genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > " + output.cl_pos[i] + 
-			"&& genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > " + output.cl_neg[i] + 
-			"&& genomeCoverageBed -i " + input.cl[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > " + output.cl_bot[i] + 
-			"genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > " + output.alends_pos[i] + 
-			"&& genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > " + output.alends_ned[i] + 
-			"&& genomeCoverageBed -i " + input.alends[i] + " -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > " + output.alends_bot[i] 
-			)
+		cl_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph",
+		cl_neg=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_neg_strand.bedgraph",
+		cl_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_both_strand.bedgraph",
+		alends_pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_pos_strand.bedgraph",
+		alends_ned=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_neg_strand.bedgraph",
+		alends_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_both_strand.bedgraph"
+	threads: 4
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.cl_pos}" 
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.cl_neg}" 
+		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.cl_bot}" 
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.alends_pos}"
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand - > {output.alends_ned}" 
+		"&& genomeCoverageBed -i {input.alends} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg > {output.alends_bot}" 
 
-# rule calculate_coverage:
-# 	input:
-# 		COVERAGE_OUTDIR + "/*.bedgraph"
-# 	output:
-# 		COVERAGE_OUTDIR + "/bigwig"
-# 	shell:
-# 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; else rm -r {COVERAGE_OUTDIR}/bigwig && mkdir {COVERAGE_OUTDIR}/bigwig; fi "
-# 		"&& grep -v '^track' {input} | wigToBigWig stdin  {REF_GENOME_DIR}/hg19_chr_sizes.txt {input} -clip 2>&1 || echo 'Error running wigToBigWig.' >&2"
+rule calculate_coverage_bigwig:
+	input:
+		cl=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bedgraph",
+		alends=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bedgraph"
+	output:
+		cl=COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig",
+		alends=COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig"
+	threads: 4
+	conda:
+		"envs/bedGraphToBigWig.yml"
+	shell:
+		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
+		"&& bedGraphToBigWig {input.cl} {REF_GENOME_DIR}/hg19_chr_sizes.txt {output.cl}"
+		"&& bedGraphToBigWig {input.alends} {REF_GENOME_DIR}/hg19_chr_sizes.txt {output.alends}"
 
 ##############################
 ## POST-PROCESSING OF PEAKS ##
@@ -475,8 +592,9 @@ rule peaks_tsv_to_bed:
 		PEAKCALLING_OUTDIR + "/peakachu.tsv"
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu.bed"
+	threads: 2
 	shell:
-		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; else rm -r {POSTPROCESSING_OUTDIR} && mkdir {POSTPROCESSING_OUTDIR}; fi"
+		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
 		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
 
 rule peaks_extend_frontiers:
@@ -485,6 +603,7 @@ rule peaks_extend_frontiers:
 		genome=REF_GENOME_DIR + "/hg19_chr_sizes.txt"
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+	threads: 2
 	params:
 		nucleotides=20
 	shell:
@@ -499,31 +618,35 @@ rule extract_genomic_DNA_dreme:
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-	run:
-		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; else rm -r {MOTIF_DETECTION_OUTDIR} && mkdir {MOTIF_DETECTION_OUTDIR}; fi"
+	threads: 2
+	shell:
+		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
-		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/hg19_2.fa")
+		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
 rule dreme:
-	input: 
-		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-	output:
-		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html"
-	conda:
-		"envs/meme_suite.yml"
-	params:
-		num_motifs=10,
-		min_motif_size=5,
-		max_motif_size=20
-	shell:
-		"python2 /home/flow/miniconda3/bin/dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
-		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+ 	output:
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.html",
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
+ 	threads: 4
+ 	conda:
+ 		"envs/dreme.yml"
+ 	params:
+ 		num_motifs=10,
+ 		min_motif_size=5,
+ 		max_motif_size=20
+ 	shell:
+ 		"python2 {config[dreme]}/dreme -p {input} -norc -dna -s '1' -e 0.05 -m {params.num_motifs} -g 100 -mink {params.min_motif_size} "
+ 		"-maxk {params.max_motif_size} -oc {MOTIF_DETECTION_OUTDIR}/dreme"
 
 rule meme_chip:
 	input: 
 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
 	output:
 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+	threads: 4
 	conda:
 		"envs/meme_suite.yml"
 	shell:
@@ -531,98 +654,97 @@ rule meme_chip:
 		"-filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip"
 
 rule cross_random_subsampling_for_meme:
-	input:
-		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-	output:
-		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
-	params:
-		n_peaks=1000,
-		seed_value=123
-	run:
-		lines = open(str(input)).read().splitlines()
-		header = lines[0]
-		lines = lines[1:]
-		if params.seed_value != -1:
-			random.seed(params.seed_value)
-		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR}/meme ]; then mkdir {MOTIF_DETECTION_OUTDIR}/meme; else rm -r {MOTIF_DETECTION_OUTDIR}/meme && mkdir {MOTIF_DETECTION_OUTDIR}/meme; fi")
-		for i in range(0, len(PEAK_FILES_FOR_MEME)):
-			peak_file = "peak_random_sample_" + str(i+1) 
-			complet_path_to_peak_file = MOTIF_DETECTION_OUTDIR + "/meme/" + peak_file
-			shell("if [ ! -d {complet_path_to_peak_file} ]; then mkdir {complet_path_to_peak_file}; else rm -r {complet_path_to_peak_file} && mkdir {complet_path_to_peak_file}; fi")
-			outfile = open(str(complet_path_to_peak_file + "/" + peak_file + ".bed"),"w") 
-			outfile.write(header + "\n")
-			choices = random.sample(lines, params.n_peaks)
-			for l in choices[:-1]:			
-				outfile.write(l + "\n")
-			outfile.write(choices[-1])
-			outfile.close()
+ 	input:
+ 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+ 	output:
+ 		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
+ 	params:
+ 		n_peaks=1000,
+ 		seed_value=123
+ 	run:
+ 		lines = open(str(input)).read().splitlines()
+ 		header = lines[0]
+ 		lines = lines[1:]
+ 		if params.seed_value != -1:
+ 			random.seed(params.seed_value)
+ 		shell("if [ ! -d {MOTIF_DETECTION_OUTDIR}/meme ]; then mkdir {MOTIF_DETECTION_OUTDIR}/meme; else rm -r {MOTIF_DETECTION_OUTDIR}/meme && mkdir {MOTIF_DETECTION_OUTDIR}/meme; fi")
+ 		for i in range(0, len(PEAK_FILES_FOR_MEME)):
+ 			peak_file = "peak_random_sample_" + str(i+1) 
+ 			complet_path_to_peak_file = MOTIF_DETECTION_OUTDIR + "/meme/" + peak_file
+ 			shell("if [ ! -d {complet_path_to_peak_file} ]; then mkdir {complet_path_to_peak_file}; else rm -r {complet_path_to_peak_file} && mkdir {complet_path_to_peak_file}; fi")
+ 			outfile = open(str(complet_path_to_peak_file + "/" + peak_file + ".bed"),"w") 
+ 			outfile.write(header + "\n")
+ 			choices = random.sample(lines, params.n_peaks)
+ 			for l in choices[:-1]:			
+ 				outfile.write(l + "\n")
+ 			outfile.write(choices[-1])
+ 			outfile.close()
 
 rule extract_genomic_DNA_meme:
-	input:
-		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed", peak_file=PEAK_FILES_FOR_MEME)
-	output:
-		bed3=expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed3", peak_file=PEAK_FILES_FOR_MEME),
-		fa=expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa", peak_file=PEAK_FILES_FOR_MEME)
-	run:
-		for i in range(0,len(input)):
-			shell("""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' """ + input[i] + " > " + output.bed3[i] + " "
-			"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o " + output.fa[i] + " " + 
-			output.bed3[i] + " {REF_GENOME_DIR}/hg19_2.fa")
+ 	input:
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed"
+ 	output:
+ 		bed3=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.bed3",
+ 		fa=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
+ 	threads: 2
+ 	shell:
+ 		"""awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {output.bed3}"""
+ 		"&& python {config[extract_genomic_dna]}/fetch_DNA_sequence.py -o {output.fa} {output.bed3} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
 rule meme:
-	input: 
-		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa", peak_file=PEAK_FILES_FOR_MEME)
-	output:
-		output_dir=expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
-	conda:
-		"envs/meme_suite.yml"
-	params:
-		num_motifs=10,
-		min_motif_size=5,
-		max_motif_size=20
-	run:
-		for i in range(0, len(input)):
-			shell("meme " + input[i] + " -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
-			"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc " + output.output_dir[i])
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}.fa"
+ 	output:
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml"
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	threads: 4
+ 	params:
+ 		num_motifs=10,
+ 		min_motif_size=5,
+ 		max_motif_size=20,
+ 		output_dir=MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output"
+ 	shell:
+ 		"meme {input} -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
+ 		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {params.output_dir}"
 
-rule rcas:
-	input:
-		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-	output:
-		MOTIF_DETECTION_OUTDIR + "/rcas/rcas_summary.html"
-	shell:
-		"if [ ! -d {MOTIF_DETECTION_OUTDIR}/rcas ]; then mkdir {MOTIF_DETECTION_OUTDIR}/rcas; else rm -r {MOTIF_DETECTION_OUTDIR}/rcas && mkdir {MOTIF_DETECTION_OUTDIR}/rcas; fi"
-		"&& Rscript " + config["rcas"] + "/RCAS.R {input} {REF_GENOME_DIR}/Ensembl_Homo_sapiens.GRCh37.74.gtf ... 'hg19' {SRC_PATH}/{MOTIF_DETECTION_OUTDIR}/rcas 0 "
-		"&& mv {MOTIF_DETECTION_OUTDIR}/rcas/*.html {MOTIF_DETECTION_OUTDIR}/rcas/rcas_summary.html"
+# for RCAS please use ensembl annotation gtfs
+# rule rcas:
+# 	input:
+# 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
+# 	output:
+# 		MOTIF_DETECTION_OUTDIR + "/rcas/rcas_summary.html"
+# 	threads: 4
+# 	shell:
+# 		"if [ ! -d {MOTIF_DETECTION_OUTDIR}/rcas ]; then mkdir {MOTIF_DETECTION_OUTDIR}/rcas; fi"
+# 		"&& Rscript " + config["rcas"] + "/RCAS.R {input} {REF_GENOME_DIR}/Ensembl_Homo_sapiens.GRCh37.74.gtf ... 'hg19' {SRC_PATH}/{MOTIF_DETECTION_OUTDIR}/rcas 0 "
+# 		"&& mv {MOTIF_DETECTION_OUTDIR}/rcas/*.html {MOTIF_DETECTION_OUTDIR}/rcas/rcas_summary.html"
 
-##################
-## MOTIF SEARCH ##
-##################
+# ##################
+# ## MOTIF SEARCH ##
+# ##################
 
 rule fimo_for_dreme_output:
-	input: 
-		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
-	output:
-		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html",
-		interval=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.interval",
-		txt=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.txt",
-		xml=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.xml"
-	conda:
-		"envs/meme_suite.yml"
-	run:
-		shell("if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; else rm -r {MOTIF_SEARCH_OUTDIR} && mkdir {MOTIF_SEARCH_OUTDIR}; fi"
-		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
-		"--oc {MOTIF_SEARCH_OUTDIR}/fimo_dreme {input} {REF_GENOME_DIR}/hg19_2.fa")
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/dreme/dreme.xml"
+ 	output:
+ 		html=MOTIF_SEARCH_OUTDIR + "/fimo_dreme/fimo.html"
+ 	threads: 4
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	shell:
+ 		"if [ ! -d {MOTIF_SEARCH_OUTDIR} ]; then mkdir {MOTIF_SEARCH_OUTDIR}; fi"
+ 		"&& fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+ 		"--oc {MOTIF_SEARCH_OUTDIR}/fimo_dreme {input} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
 
-
-rule motif_search_for_meme_output:
-	input: 
-		expand(MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml", peak_file=PEAK_FILES_FOR_MEME)
-	output:
-		expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output", peak_file=PEAK_FILES_FOR_MEME)
-	conda:
-		"envs/meme_suite.yml"
-	run:
-		for i in range(0, len(input)):
-			shell("fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
-			"--oc " + output[i] + " " + input[i] + " {REF_GENOME_DIR}/hg19_2.fa")
+rule fimo_for_meme_output:
+ 	input: 
+ 		MOTIF_DETECTION_OUTDIR + "/meme/{peak_file}_meme_output/meme.xml"
+ 	output:
+ 		MOTIF_SEARCH_OUTDIR + "/fimo_meme/{peak_file}_meme_output"
+ 	threads: 4
+ 	conda:
+ 		"envs/meme_suite.yml"
+ 	shell:
+ 		"fimo --alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1 "
+ 		"--oc {output} {input} {REF_GENOME_DIR}/GRCh37.p13.genome.fa"
