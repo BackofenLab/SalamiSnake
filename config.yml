@@ -15,13 +15,14 @@ control_samples:
 ###############
 
 # input directory
-sample_data_dir: "/scratch/bi01/heylf/eCLIP/RBFOX2"
+sample_data_dir: "/scratch/bi03/heylf/eCLIP/RBFOX2"
 
 # output directories
 renaming_outdir:  "renaming"
 fastqc_first_outdir:  "fastqc_first"
 cutadapt_outdir:  "cutadapt"
 trim_galore_outdir: "trim_galore"
+remove_tail_outdir: "remove_tail"
 mapping_outdir: "mapping"
 mapping_quality_outdir: "mapping_quality"
 preprocessing_for_umi_outdir: "preprocessing_for_umi"

@@ -4,84 +4,105 @@ __default__:
         jobname: "SalamiSnake"
         cores: "smp 2"
         mem: "h_vmem=4G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 star_generate_index_for_genome:
         jobname: "STAR_Indexing"
         cores: "smp 4"
         mem: "h_vmem=10G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+cutadapt_adapter_trimming:
+        jobname: "Cutadapt_1"
+        cores: "smp 8"
+        mem: "h_vmem=2G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+cutadapt_barcode_trimming:
+        jobname: "Cutadapt_2"
+        cores: "smp 8"
+        mem: "h_vmem=2G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 star:
         jobname: "STAR"
         cores: "smp 4"
         mem: "h_vmem=10G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+correlating_bam_files_plot:
+        jobname: "CorBamPlot"
+        cores: "smp 10"
+        mem: "h_vmem=1G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 deduplication:
         jobname: "UMI-dedup"
         cores: "smp 2"
         mem: "h_vmem=10G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 peakachu:
         jobname: "PEAKachu"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 calculate_coverage:
         jobname: "BedGraph"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 calculate_coverage_bigwig:
         jobname: "BigWig"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 dreme:
         jobname: "DREME"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 meme:
         jobname: "MEME"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 meme_chip:
         jobname: "MEME_CHIP"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 fimo_for_dreme_output:
         jobname: "FIMO_DREME"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 fimo_for_meme_output:
         jobname: "FIMO_MEME"
         cores: "smp 4"
         mem: "h_vmem=5G"
-        out: "/scratch/bi01/heylf/SalamiSnake"
-        err: "/scratch/bi01/heylf/SalamiSnake"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
 

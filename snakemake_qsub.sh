@@ -3,8 +3,8 @@
 #$ -cwd
 #$ -pe smp 1
 #$ -l h_vmem=4G
-#$ -o /scratch/bi01/heylf/SalamiSnake/
-#$ -e /scratch/bi01/heylf/SalamiSnake/
+#$ -o /scratch/bi03/heylf/Snakemake_Cluster_Logs/
+#$ -e /scratch/bi03/heylf/Snakemake_Cluster_Logs/
 #$ -M heylf@informatik.uni-freiburg.de
 #$ -m a
 #$ -R y

@@ -6,8 +6,7 @@ SRC_PATH = os.getcwd()
 
 configfile: "config.yml"
 
-REF_GENOME_DIR="/scratch/bi01/heylf/genomes/hg19"
-#REF_GENOME_DIR="genomes/hg19"
+REF_GENOME_DIR="/scratch/bi03/heylf/genomes/hg19"
 
 ###############
 ## FUNCTIONS ##
@@ -69,6 +68,7 @@ RENAMING = config['sample_data_dir'] + "/" + config['renaming_outdir']
 FASTQC_FIRST_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_first_outdir']
 CUTADAPT_OUTDIR = config['sample_data_dir'] + "/" + config['cutadapt_outdir']
 TRIMGALORE_OUTDIR = config['sample_data_dir'] + "/" + config['trim_galore_outdir']
+REMOVE_TAIL_OUTDIR = config['sample_data_dir'] + "/" + config['remove_tail_outdir']
 MAPPING_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_outdir']
 MAPPING_QUALITY_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_quality_outdir']
 PRE_FOR_UMI_OUTDIR = config['sample_data_dir'] + "/" + config['preprocessing_for_umi_outdir']
@@ -86,6 +86,8 @@ MOTIF_SEARCH_OUTDIR = config['sample_data_dir'] + "/" + config['motif_search_out
 
 rule all:
 	input: 
+		expand(CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
 		expand(FASTQC_FIRST_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
@@ -93,12 +95,12 @@ rule all:
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)#,
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		# expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)#,
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
-		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 		expand(FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
@@ -159,63 +161,69 @@ rule fastqc_first:
     	"if [ ! -d {FASTQC_FIRST_OUTDIR} ]; then mkdir {FASTQC_FIRST_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_FIRST_OUTDIR}"
 
-rule cutadapt_first_read_clip:
+rule cutadapt_adapter_trimming:
 	input:
-		first=RENAMING + "/{samples}_{replicate}_r1.fastqsanger",
-		second=RENAMING + "/{samples}_{replicate}_r2.fastqsanger"
+		first=RENAMING + "/{sample}_{replicate}_r1.fastqsanger",
+		second=RENAMING + "/{sample}_{replicate}_r2.fastqsanger"
 	output:
-		seq_first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1_tmp.fastqsanger",
-		seq_second=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r2_tmp.fastqsanger",
-		log=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1.txt"
-	threads: 2 
+		seq_first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1_tmp.fastqsanger",
+		seq_second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2_tmp.fastqsanger",
+		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}_tmp.txt"
+	threads: 8 
 	conda:
 		"envs/cutadapt.yml"
 	shell:
 		"if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; fi"
-		"&& cutadapt --format=fastq  --error-rate=0.1 --times=1 --overlap=5 " 
-		"--front='CTTCCGATCTACAAGTT' --front='CTTCCGATCTTGGTCCT' " 
-		"--paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
+		"&& cutadapt -j {threads} --error-rate=0.1 --times=1 --overlap=5 " 
+		"-a AACTTGTAGATCGGA -a AGGACCAAGATCGGA -a ACTTGTAGATCGGAA -a GGAAGAGCGTCGTGT "
+		"-a GGACCAAGATCGGAA -a CTTGTAGATCGGAAG -a GACCAAGATCGGAAG -a TTGTAGATCGGAAGA "
+		"-a ACCAAGATCGGAAGA -a TGTAGATCGGAAGAG -a CCAAGATCGGAAGAG -a GTAGATCGGAAGAGC "
+		"-a CAAGATCGGAAGAGC -a TAGATCGGAAGAGCG -a AAGATCGGAAGAGCG -a AGATCGGAAGAGCGT "
+		"-a GATCGGAAGAGCGTC -a ATCGGAAGAGCGTCG -a TCGGAAGAGCGTCGT -a CGGAAGAGCGTCGTG "
+		"-g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT "
+		"-A AACTTGTAGATCGGA -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGAAGAGCGTCGTGT "
+		"-A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA "
+		"-A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC "
+		"-A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT "
+		"-A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG "
+		"-G CTTCCGATCTACAAGTT -G CTTCCGATCTTGGTCCT "
+		"-m 10 --paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
 
-rule cutadapt_second_read_clip:
+rule cutadapt_barcode_trimming:
 	input:
 		first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1_tmp.fastqsanger",
 		second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2_tmp.fastqsanger"
 	output:
 		seq_first=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
 		seq_second=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
-		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.txt"
-	threads: 2
+		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}.txt"
+	threads: 8 
+	params:
+ 		cut_n_bases=-5
 	conda:
 		"envs/cutadapt.yml"
 	shell:
-		"cutadapt --format=fastq --error-rate=0.1 --times=1 --overlap=5 " 
-		"--adapter='AACTTGTAGATCGGA' --adapter='AGGACCAAGATCGGA' --adapter='ACTTGTAGATCGGAA' --adapter='GGAAGAGCGTCGTGT' "
-		"--adapter='GGACCAAGATCGGAA' --adapter='CTTGTAGATCGGAAG' --adapter='GACCAAGATCGGAAG' --adapter='TTGTAGATCGGAAGA' " 
-		"--adapter='ACCAAGATCGGAAGA' --adapter='TGTAGATCGGAAGAG' --adapter='CCAAGATCGGAAGAG' --adapter='GTAGATCGGAAGAGC' " 
-		"--adapter='CAAGATCGGAAGAGC' --adapter='TAGATCGGAAGAGCG' --adapter='AAGATCGGAAGAGCG' --adapter='AGATCGGAAGAGCGT' " 
-		"--adapter='GATCGGAAGAGCGTC' --adapter='ATCGGAAGAGCGTCG' --adapter='TCGGAAGAGCGTCGT' --adapter='CGGAAGAGCGTCGTG' "
-		"--paired-output={output.seq_first} --output={output.seq_second} {input.second} {input.first} > {output.log}"
-		"&& rm {input.second}" 
-		"&& rm {input.first}"
+		"cutadapt -j {threads} --format=fastq  --error-rate=0.1 --times=1 --overlap=5 -u {params.cut_n_bases} -m 10 "
+		"--paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
 
-rule trim_galore_clip:
-	input:
-		first_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
-		second_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
-	output:
-		first_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
-		second_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
-	threads: 2
-	params:
-		cut_n_bases=5
-	conda:
-		"envs/trim_galore.yml"
-	shell:
-		"if [ ! -d {TRIMGALORE_OUTDIR} ]; then mkdir {TRIMGALORE_OUTDIR}; fi"
-		"&& trim_galore --phred33 --suppress_warn --three_prime_clip_R1 {params.cut_n_bases} --paired --dont_gzip "
-		"--output_dir {TRIMGALORE_OUTDIR} {input.first_read} {input.second_read}"
-		"&& mv {output.first_read_out}_val_1.fq {output.first_read_out}" 
-		"&& mv {output.second_read_out}_val_2.fq {output.second_read_out}"
+# rule trim_galore_clip:
+# 	input:
+# 		first_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+# 		second_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
+# 	output:
+# 		first_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+# 		second_read_out=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger"
+# 	threads: 2
+# 	params:
+# 		cut_n_bases=5
+# 	conda:
+# 		"envs/trim_galore.yml"
+# 	shell:
+# 		"if [ ! -d {TRIMGALORE_OUTDIR} ]; then mkdir {TRIMGALORE_OUTDIR}; fi"
+# 		"&& trim_galore --phred33 --suppress_warn --three_prime_clip_R1 {params.cut_n_bases} --paired --dont_gzip "
+# 		"--output_dir {TRIMGALORE_OUTDIR} {input.first_read} {input.second_read}"
+# 		"&& mv {output.first_read_out}_val_1.fq {output.first_read_out}" 
+# 		"&& mv {output.second_read_out}_val_2.fq {output.second_read_out}"
 
 #############
 ## MAPPING ##
@@ -235,8 +243,8 @@ rule star_generate_index_for_genome:
 
 rule star:
 	input:
-		first_read=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
-		second_read=TRIMGALORE_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
+		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+		second_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
 	output:
 		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
 		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
@@ -268,67 +276,6 @@ rule indexing:
 	threads: 2
 	shell:
 		"samtools index {input}"
-
-#####################
-## MAPPING QUALITY ##
-#####################
-
-# rule compute_gc_bias_plots:
-# 	input:
-# 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
-# 	output:
-# 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png",
-# 		file=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_data.txt"
-# 	threads: 2
-# 	conda:
-# 		"envs/deeptools.yml"
-# 	shell:
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-# 		"&& computeGCBias --numberOfProcessors {threads} --bamfile {input} --GCbiasFrequenciesFile {output.file} --fragmentLength 300 "
-# 		"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 --biasPlot {output.plot} --plotFileFormat png"
-
-# rule estimate_insert_size:
-# 	input:
-# 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
-# 	output:
-# 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf",
-# 		report=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_report.txt"
-# 	threads: 2
-# 	conda:
-# 		"envs/picard.yml"
-# 	shell:
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-# 		"&& picard CollectInsertSizeMetrics INPUT={input} OUTPUT={output.report} "
-# 		"HISTOGRAM_FILE={output.plot} DEVIATIONS='10.0' MINIMUM_PCT='0.05' REFERENCE_SEQUENCE={REF_GENOME_DIR}/hg19.fa ASSUME_SORTED='true' " 
-# 		"METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR"
-
-rule finger_print_plot:
-	input:
-		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-	output:
-		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
-	threads: 2
-	conda:
-		"envs/deeptools.yml"
-	shell:	
-		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} --labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
-
-# rule correlating_bam_files_plot:
-# 	input:
-# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-# 	output:
-# 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
-# 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
-# 	threads: 2
-# 	conda:
-# 		"envs/deeptools.yml"
-# 	shell:	
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
-# 		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
-# 		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
-# 		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
-# 		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'"
 
 ########################
 ## POST-MAP FILTERING ##
@@ -369,6 +316,70 @@ rule filter_out_unlocalized_regions_for_later_genome_versions:
 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """
 		"| samtools view -bSh > {output}"
 		"&& samtools index {output}"
+
+#####################
+## MAPPING QUALITY ##
+#####################
+
+rule compute_gc_bias_plots:
+	input:
+		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+	output:
+		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png",
+		file=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_data.txt"
+	threads: 2
+	conda:
+		"envs/deeptools.yml"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& computeGCBias --numberOfProcessors {threads} --bamfile {input} --GCbiasFrequenciesFile {output.file} --fragmentLength 300 "
+		"--genome {REF_GENOME_DIR}/hg19.2bit --effectiveGenomeSize 2451960000 --biasPlot {output.plot} --plotFileFormat png"
+
+# for picard please conda install R
+rule estimate_insert_size:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
+	output:
+		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf",
+		report=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_report.txt"
+	threads: 2
+	conda:
+		"envs/picard.yml"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& source activate picard"
+		"&& picard CollectInsertSizeMetrics INPUT={input} OUTPUT={output.report} "
+		"HISTOGRAM_FILE={output.plot} DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' " 
+		"METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR "
+		"&& source deactivate"
+
+rule finger_print_plot:
+	input:
+		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+	output:
+		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
+	threads: 2
+	conda:
+		"envs/deeptools.yml"
+	shell:	
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} --labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
+
+# rule correlating_bam_files_plot:
+# 	input:
+# 		expand(MAPPING_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
+# 	output:
+# 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
+# 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+# 	threads: 10
+# 	conda:
+# 		"envs/deeptools.yml"
+# 	shell:	
+# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
+# 		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
+# 		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
+# 		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
+# 		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'"
  
 ###################
 ## DEDUPLICATION ##
@@ -486,7 +497,7 @@ rule extract_crosslinking_position:
 	threads: 2
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
-		"&& python {config[bctools]}/coords2clnt.py {input} > {output}"
+		"&& python {config[bctools]}/coords2clnt.py --threeprime {input} > {output}"
 
 rule intersect_crosslink_sites_with_peaks:
     input:
@@ -697,6 +708,7 @@ rule meme:
  		"meme {input} -maxsize 1000000 -nostatus -dna -pal -prior dirichlet -b 0.01 -spmap uni -spfuzz 0.5 -nmotifs {params.num_motifs} -mod zoops "
  		"-wnsites 0.8 -minw {params.min_motif_size} -maxw {params.max_motif_size} -wg 11 -ws 1 -maxiter 50 -distance 0.001 -oc {params.output_dir}"
 
+# for RCAS please use ensembl annotation gtfs
 # rule rcas:
 # 	input:
 # 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
