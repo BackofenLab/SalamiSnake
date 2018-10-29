@@ -2,5 +2,6 @@ name: fastqc
 channels:
   - bioconda
 dependencies:
+  - fastqc=0.11.7
   - openjdk
   - perl=5.22.0*

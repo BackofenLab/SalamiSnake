@@ -2,6 +2,7 @@ name: peakachu
 channels:
   - bioconda
 dependencies:
+  - peakachu=0.1.0
   - bcbiogff>=0.6.4
   - bioconductor-deseq2>=1.18.1
   - bioconductor-edger

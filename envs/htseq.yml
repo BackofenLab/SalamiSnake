@@ -2,6 +2,7 @@ name: htseq
 channels:
   - bioconda
 dependencies:
+  - htseq=0.9.1
   - matplotlib>=1.4
   - numpy
   - pysam>=0.9.0

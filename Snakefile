@@ -65,15 +65,15 @@ print(SAMPLES)
 ######################
 
 RENAMING = config['sample_data_dir'] + "/" + config['renaming_outdir']
-FASTQC_FIRST_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_first_outdir']
+FASTQC_BEG_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_beg_outdir']
+FASTQC_ADAPT_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_adapt_outdir']
 CUTADAPT_OUTDIR = config['sample_data_dir'] + "/" + config['cutadapt_outdir']
 TRIMGALORE_OUTDIR = config['sample_data_dir'] + "/" + config['trim_galore_outdir']
-REMOVE_TAIL_OUTDIR = config['sample_data_dir'] + "/" + config['remove_tail_outdir']
 MAPPING_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_outdir']
 MAPPING_QUALITY_OUTDIR = config['sample_data_dir'] + "/" + config['mapping_quality_outdir']
 PRE_FOR_UMI_OUTDIR = config['sample_data_dir'] + "/" + config['preprocessing_for_umi_outdir']
 DEDUPLICAITON_OUTDIR = config['sample_data_dir'] + "/" + config['deduplication_outdir']
-FASTQC_SECOND_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_second_outdir']
+FASTQC_DEDUP_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_dedup_outdir']
 COVERAGE_OUTDIR = config['sample_data_dir'] + "/" + config['coverage_outdir']
 PEAKCALLING_OUTDIR = config['sample_data_dir'] + "/" + config['peakcalling_outdir']
 POSTPROCESSING_OUTDIR = config['sample_data_dir'] + "/" + config['post_processing_outdir']
@@ -152,14 +152,14 @@ rule fastqc_first:
     input:
     	RENAMING + "/{sample}.fastqsanger"
     output:
-    	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.html",
-    	FASTQC_FIRST_OUTDIR + "/{sample}.fastqsanger_fastqc.zip"
+    	FASTQC_BEG_OUTDIR + "/{sample}.fastqsanger_fastqc.html",
+    	FASTQC_BEG_OUTDIR + "/{sample}.fastqsanger_fastqc.zip"
     threads: 2
     conda:
     	"envs/fastqc.yml"
     shell:
-    	"if [ ! -d {FASTQC_FIRST_OUTDIR} ]; then mkdir {FASTQC_FIRST_OUTDIR}; fi"
-    	"&& fastqc {input} --outdir {FASTQC_FIRST_OUTDIR}"
+    	"if [ ! -d {FASTQC_BEG_OUTDIR} ]; then mkdir {FASTQC_BEG_OUTDIR}; fi"
+    	"&& fastqc {input} --outdir {FASTQC_BEG_OUTDIR}"
 
 rule cutadapt_adapter_trimming:
 	input:
@@ -225,6 +225,19 @@ rule cutadapt_barcode_trimming:
 # 		"&& mv {output.first_read_out}_val_1.fq {output.first_read_out}" 
 # 		"&& mv {output.second_read_out}_val_2.fq {output.second_read_out}"
 
+rule fastqc_after_adapter_removal:
+    input:
+    	CUTADAPT_OUTDIR + "/{sample}.fastqsanger"
+    output:
+    	FASTQC_ADAPT_OUTDIR + "/{sample}.fastqsanger_fastqc.html",
+    	FASTQC_ADAPT_OUTDIR + "/{sample}.fastqsanger_fastqc.zip"
+    threads: 2
+    conda:
+    	"envs/fastqc.yml"
+    shell:
+    	"if [ ! -d {FASTQC_ADAPT_OUTDIR} ]; then mkdir {FASTQC_ADAPT_OUTDIR}; fi"
+    	"&& fastqc {input} --outdir {FASTQC_ADAPT_OUTDIR}"
+
 #############
 ## MAPPING ##
 #############
@@ -236,6 +249,8 @@ rule star_generate_index_for_genome:
 	output:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab"
 	threads: 4
+	conda:
+		"envs/star.yml"
 	shell:
 		"if [ -d {config[sample_data_dir]}/STAR_tmp_Index ]; then rm -r {config[sample_data_dir]}/STAR_tmp_Index; fi "
 		"&& STAR --outTmpDir {config[sample_data_dir]}/STAR_tmp_Index --runThreadN {threads} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} "
@@ -243,12 +258,14 @@ rule star_generate_index_for_genome:
 
 rule star:
 	input:
-		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
-		second_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
+		first_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger",
+		second_read=CUTADAPT_OUTDIR + "/{sample}_{replicate}_r2.fastqsanger",
 	output:
 		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
 		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
 	threads: 4
+	conda:
+		"envs/star.yml"
 	params:
 		output_folder=MAPPING_OUTDIR + "/{sample}_{replicate}"	
 	shell:
@@ -274,6 +291,8 @@ rule indexing:
 	output:
 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai"
 	threads: 2
+	conda:
+		"envs/samtools.yml"
 	shell:
 		"samtools index {input}"
 
@@ -287,6 +306,8 @@ rule unique_reads_fitlering:
 	output:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
 	threads: 2
+	conda:
+		"envs/samtools.yml"
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h {input} "
@@ -299,6 +320,8 @@ rule got_umis:
 	output:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
 	threads: 2
+	conda:
+		"envs/samtools.yml"
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h {input} "
@@ -311,6 +334,8 @@ rule filter_out_unlocalized_regions_for_later_genome_versions:
 	output:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 	threads: 2
+	conda:
+		"envs/samtools.yml"
 	shell:
 		"samtools view -h {input} "
 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """
@@ -410,13 +435,13 @@ rule fastqc_second:
     input:
     	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
     output:
-    	FASTQC_SECOND_OUTDIR + "/{sample}_{replicate}_fastqc.html"
+    	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html"
     threads: 2
     conda:
     	"envs/fastqc.yml"
     shell:
-    	"if [ ! -d {FASTQC_SECOND_OUTDIR} ]; then mkdir {FASTQC_SECOND_OUTDIR}; fi"
-    	"&& fastqc {input} --outdir {FASTQC_SECOND_OUTDIR}"
+    	"if [ ! -d {FASTQC_DEDUP_OUTDIR} ]; then mkdir {FASTQC_DEDUP_OUTDIR}; fi"
+    	"&& fastqc {input} --outdir {FASTQC_DEDUP_OUTDIR}"
 
 #################
 ## PEAKCALLING ##
@@ -506,6 +531,8 @@ rule intersect_crosslink_sites_with_peaks:
     output:
     	COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed"
     threads: 2
+    conda:
+		"envs/bedtools.yml"
     shell:
     	"bedtools intersect -a {input.cl} -b {input.peaks} -s -u -wa  > {output}"
 
@@ -543,6 +570,8 @@ rule sort_beds:
 		cl=COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed",
 		alends=COVERAGE_OUTDIR + "/{sample}_{replicate}_alignment_ends_sorted.bed"
 	threads: 2
+	conda:
+		"envs/bedtools.yml"
 	shell:
 		"bedtools sort -i {input.cl} > {output.cl}"
 		"&& bedtools sort -i {input.alends} > {output.alends}"
@@ -559,6 +588,8 @@ rule calculate_coverage:
 		alends_ned=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_neg_strand.bedgraph",
 		alends_bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_alignment_ends_coverage_both_strand.bedgraph"
 	threads: 4
+	conda:
+		"envs/bedtools.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
 		"&& genomeCoverageBed -i {input.cl} -g {REF_GENOME_DIR}/hg19_chr_sizes.txt -bg -strand + > {output.cl_pos}" 
@@ -604,6 +635,8 @@ rule peaks_extend_frontiers:
 	output:
 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
 	threads: 2
+	conda:
+		"envs/bedtools.yml"
 	params:
 		nucleotides=20
 	shell:

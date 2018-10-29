@@ -2,6 +2,7 @@ name: deeptools
 channels:
   - bioconda
 dependencies:
+  - deeptools=3.1.0
   - matplotlib>=2.1.1
   - numpy>=1.9.0
   - pandas

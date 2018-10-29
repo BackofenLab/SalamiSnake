@@ -2,6 +2,7 @@ name: cutadapt
 channels:
   - bioconda
 dependencies:
+  - cutadapt=1.16
   - pigz
   - python=3.6*
   - xopen>=0.3.2
