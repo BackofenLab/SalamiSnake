@@ -1,0 +1,8 @@
+name: pureclip
+channels:
+  - bioconda
+dependencies:
+  - pureclip=1.0.4
+  - bedtools
+  - meme
+

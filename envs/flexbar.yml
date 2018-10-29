@@ -1,0 +1,11 @@
+name: flexbar
+channels:
+  - bioconda
+dependencies:
+    - bzip2=1.0*
+    - libcxx
+    - libgcc
+    - seqan-library=2.4.0
+    - tbb
+    - zlib=1.2.11*
+
