@@ -2,6 +2,7 @@ name: bctools
 channels:
   - bioconda
 dependencies:
+  - bctools=0.2.2
   - bedtools
   - biopython
   - datamash

@@ -2,5 +2,6 @@ name: picard
 channels:
   - bioconda
 dependencies:
+  - picard=2.18.7
   - openjdk>=8
   - python=3.6*

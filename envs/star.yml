@@ -1,4 +1,6 @@
 name: star
 channels:
   - bioconda
-
+dependencies:
+  - star=2.6.1*
+  
