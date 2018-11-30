@@ -56,6 +56,13 @@ peakachu:
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
+piranha:
+        jobname: "Piranha"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
 calculate_coverage:
         jobname: "BedGraph"
         cores: "smp 4"

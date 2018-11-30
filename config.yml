@@ -4,18 +4,26 @@
 ######################
 
 clip_samples:
-  RBFOX_rep1: {r1: "ENCFF172GUS", r2: "ENCFF647KDW"}
-  RBFOX_rep2: {r1: "ENCFF591SSP", r2: "ENCFF289OFA"}
+  ELAVL1_rep1: {r1: "SRR989636", r2: "_"}
+  ELAVL1_rep2: {r1: "SRR989637", r2: "_"}
 
 control_samples:
-  Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
+  #Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
 
 ###############
 # Directories #
 ###############
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/eCLIP/RBFOX2"
+sample_data_dir: "/scratch/bi03/heylf/Dinh/ELAVL1/friedersdorf"
+
+# genome directories
+#hg19 
+ref_genome_dir: "/scratch/bi03/heylf/genomes/hg19"
+genome_fasta: "/GRCh37.p13.genome.fa"
+genome_2bit: "/hg19.2bit"
+genome_gtf: "/Genocode_hg19.gtf"
+genome_sizes: "/hg19_chr_sizes.txt"
 
 # output directories
 renaming_outdir:  "renaming"
@@ -32,11 +40,54 @@ fastqc_dedup_outdir:  "fastqc_after_deduplication"
 coverage_outdir:  "coverage"
 peakcalling_outdir:  "peakcalling"
 post_processing_outdir: "post_processing"
+robust_peak_search_outdir: "robust_peak_search"
 motif_detection_outdir: "motif_detection"
 motif_search_outdir: "motif_search"
+matefilter_outdir:  "mate_filter"
 
 # tool directories
 bctools: "scripts"
 rcas: "scripts"
 extract_genomic_dna: "scripts"
+find_robust_intersections: "scripts"
 dreme: "/scratch/bi01/heylf/miniconda3/bin"
+
+################
+# Tool options #
+################
+
+cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
+got_umis_1: &got_umis_1 "-p NNNNNXXXXXXNN"
+got_umis_2: &got_umis_2 "-p NNNNNN"
+star: &star >-
+    --outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None
+    --outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10'
+    --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' 
+    --outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0'
+    --seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0'
+    --alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' 
+    --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
+    --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000'
+umi_dedup: &umi_dedup "--random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --soft-clip-threshold 4 --subset 1.0"
+gc_bias: &gc_bias "--fragmentLength 300 --effectiveGenomeSize 2451960000"
+fingerprint: &fingerprint "--binSize 100"
+estimate_insert_size: &estimate_insert_size >-
+                      DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' 
+                      METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR
+pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+piranha: &piranha "-s -p 0.05  -b 10 -i 10 -u 10 -d Poisson"
+# see my note to --pairwise_replicates 
+peakachu: &peackachu >-
+          --max_insert_size 200 --features '' --sub_features '' --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 
+          --norm_method deseq --mad_multiplier 0.0 --fc_cutoff 2.0 --padj_threshold 0.05 --pairwise_replicates 
+extract_cl: &extract_cl "--threeprime"
+peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
+meme_chip: &meme_chip >-
+            -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
+            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna
+
+# PARCLIP
+all_tool_params: [*cutadapt, *star, *umi_dedup, *gc_bias, *fingerprint, *pureclip, *piranha, *peaks_extend_frontiers, *meme_chip]
+
+#iCLIP
+#all_tool_params: [*cutadapt, *got_umis_1, *got_umis_2, *star, *umi_dedup, *gc_bias, *fingerprint, *estimate_insert_size, *pureclip, *extract_cl, *peaks_extend_frontiers, *meme_chip]
