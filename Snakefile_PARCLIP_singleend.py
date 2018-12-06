@@ -82,6 +82,7 @@ ROBUSTPEAKS_OUTDIR = config['sample_data_dir'] + "/" + config['robust_peak_searc
 MOTIF_DETECTION_OUTDIR = config['sample_data_dir'] + "/" + config['motif_detection_outdir']
 MOTIF_SEARCH_OUTDIR = config['sample_data_dir'] + "/" + config['motif_search_outdir']
 MATEFILTER_OUTDIR = config['sample_data_dir'] + "/" + config['matefilter_outdir']
+MULTIQC_OUTDIR = config['sample_data_dir'] + "/" + config['multiqc_outdir']
 
 ###################
 ## PREPROCESSING ##
@@ -91,22 +92,20 @@ rule all:
 	input: 
 		expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
 		expand(CUTADAPT_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		#expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		#expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_insert_size_plot.pdf", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
-		#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
-		expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP)#,
-		#expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslink_sites_intersecting_peaks.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		#expand(COVERAGE_OUTDIR + "/{sample}_crosslink_sites_quality.txt", sample=REPLICATES_CLIP),
-		#expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_crosslinking_positions_sorted.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		#expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		#expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"])#,
-		#MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+		MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
+		expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed",
+		expand(COVERAGE_OUTDIR + "/{sample}_{replicate}_check_sorted.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_coverage_pos_strand.bedgraph", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html",
+		MULTIQC_OUTDIR + "/multiqc_report.html"
 
 ALL_NEW_FILE_NAMES = ["none"] * len(REPLICATES_CLIP)
 i = 0 
@@ -161,7 +160,7 @@ rule remove_tail:
 	input:
 		first=CUTADAPT_OUTDIR + "/{samples}_{replicate}_r1.fastqsanger"
 	output:
-		first=REMOVE_TAIL_OUTDIR + "/{samples}_{replicate}_r1.fastqsanger"
+		first=REMOVE_TAIL_OUTDIR + "/{samples}_{replicate}_r1_trimmed.fastqsanger"
 	threads: 2
 	conda:
 		"envs/bctools.yml"
@@ -171,10 +170,10 @@ rule remove_tail:
 
 rule fastqc_after_adapter_removal:
     input:
-    	REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger"
+    	REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger"
     output:
-    	FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html",
-    	FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.zip"
+    	FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html",
+    	FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.zip"
     threads: 2
     conda:
     	"envs/fastqc.yml"
@@ -202,10 +201,11 @@ rule star_generate_index_for_genome:
 
 rule star:
 	input:
-		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1.fastqsanger"
+		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1_trimmed.fastqsanger"
 	output:
 		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
-		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
+		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam",
+		qual=MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out"
 	threads: 4
 	conda:
 		"envs/star.yml"
@@ -255,15 +255,16 @@ rule filter_out_unlocalized_regions_for_later_genome_versions:
 	input:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
 	output:
-		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
+		bam=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam",
+		bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai"
 	threads: 2
 	conda:
 		"envs/samtools.yml"
 	shell:
 		"samtools view -h {input} "
 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """
-		"| samtools view -bSh > {output}"
-		"&& samtools index {output}"
+		"| samtools view -bSh > {output.bam}"
+		"&& samtools index {output.bam}"
  
 ###################
 ## DEDUPLICATION ##
@@ -292,20 +293,6 @@ rule filter_out_unlocalized_regions_for_later_genome_versions:
 ## MAPPING QUALITY ##
 #####################
 
-# rule compute_gc_bias_plots:
-# 	input:
-# 		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
-# 	output:
-# 		plot=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_plot.png",
-# 		file=MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_gc_bias_data.txt"
-# 	threads: 2
-# 	conda:
-# 		"envs/deeptools.yml"
-# 	shell:
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
-# 		"&& computeGCBias --numberOfProcessors {threads} --bamfile {input} --GCbiasFrequenciesFile {output.file} {config[gc_bias]} "
-# 		"--genome {GENOME_2BIT} --biasPlot {output.plot} --plotFileFormat png"
-
 rule finger_print_plot:
 	input:
 		expand(PRE_FOR_UMI_OUTDIR + "/{all}_got_umis_unlocalized_check.bam", all=ALL_REPLICATES)
@@ -319,23 +306,20 @@ rule finger_print_plot:
 		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} {config[fingerprint]} "
 		"--labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
 
-# rule correlating_bam_files_plot:
-# 	input:
-# 		expand(DEDUPLICAITON_OUTDIR + "/{sample}.bam", sample=ALL_REPLICATES)
-# 	output:
-# 		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
-# 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
-# 	threads: 10
-#	params:
-#		
-# 	conda:
-# 		"envs/deeptools.yml"
-# 	shell:	
-# 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
-# 		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
-# 		"--labels {ALL_REPLICATES} --binSize '10000' --distanceBetweenBins '0'"
-# 		"&& plotCorrelation --corData {output.bamsummary} --plotFile {output.plot} --corMethod 'spearman' --whatToPlot 'heatmap' "
-# 		"--colorMap 'RdYlBu'  --plotTitle ''  --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'"
+rule correlating_bam_files_plot:
+	input:
+		expand(PRE_FOR_UMI_OUTDIR + "/{all}_got_umis_unlocalized_check.bam", all=ALL_REPLICATES)
+	output:
+		bamsummary=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_summary.txt",
+		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
+	threads: 4
+	conda:
+		"envs/deeptools.yml"
+	shell:	
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
+		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
+		"--labels {ALL_REPLICATES} {config[multiBamSummary]} "
+		"&& plotCorrelation {config[plotCorrelation]} --corData {output.bamsummary} --plotFile {output.plot}"
 
 ############################
 ## SECOND QUALITY CONTROL ##
@@ -345,7 +329,7 @@ rule fastqc_after_dedup:
     input:
     	PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
     output:
-    	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html"
+    	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html"
     threads: 2
     conda:
     	"envs/fastqc.yml"
@@ -356,19 +340,6 @@ rule fastqc_after_dedup:
 #################
 ## PEAKCALLING ##
 #################
-
-rule indexing_2:
-	input:
-		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
-	output:
-		sorted_bam=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_sorted.bam",
-		ind=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_sorted.bam.bai"
-	threads: 2
-	conda:
-		"envs/samtools.yml"
-	shell:
-		"samtools sort {input} > {output.sorted_bam}"
-		"&& samtools index {output.ind}"
 
 # BE CAREFUL when using other protocols then you might need to define a different bitflag!!
 # rule mate_reads_fitlering:
@@ -401,8 +372,8 @@ rule indexing_2:
 
 rule pureclip:
 	input:
-		experiment=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_sorted.bam",
-		experiment_bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_sorted.bam.bai",
+		experiment=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam",
+		experiment_bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai",
 		genome_fasta=GENOME_FASTA
 	output:
 		crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
@@ -424,9 +395,9 @@ rule pureclip:
 
 rule bam_to_bed:
 	input:
-		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_sorted.bam"
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 	output:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}.bed"
 	threads: 2
 	conda:
 		"envs/bedtools.yml"
@@ -436,31 +407,34 @@ rule bam_to_bed:
 
 rule correct_bed_format_check:
 	input:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}.bed"
 	output:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted_check.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_check.bed"
 	threads: 2
 	shell:
-		"""awk -F "\t" 'BEGIN {{ OFS = FS }} $3 != 0 {{ print $0 }}' {input} > {output} """
+		"""awk -v OFS="\t" -v FS="\t" '$3 != 0 {{ print $0 }}' {input} > {output} """
 
 rule sort_beds:
 	input:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted_check.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_check.bed"
+		#COVERAGE_OUTDIR + "/{sample}_{replicate}.bed"
 	output:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted_check_sorted.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_check_sorted.bed"
 	threads: 2
 	conda:
-		"envs/bedtools.yml"
+		#"envs/bedtools.yml"
+		"envs/bedops.yml"
 	shell:
-		"bedtools sort -i {input} > {output}"
+		"&& sort-bed {input} > {output}"
+		#"&& bedtools sort -i {input} > {output}"
 
 rule calculate_coverage:
 	input:
-		COVERAGE_OUTDIR + "/{sample}_{replicate}_sorted_check_sorted.bed"
+		COVERAGE_OUTDIR + "/{sample}_{replicate}_check_sorted.bed"
 	output:
-		pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_pos_strand.bedgraph",
-		neg=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_neg_strand.bedgraph",
-		bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_crosslinking_coverage_both_strand.bedgraph"
+		pos=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_coverage_pos_strand.bedgraph",
+		neg=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_coverage_neg_strand.bedgraph",
+		bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_coverage_both_strand.bedgraph"
 	threads: 4
 	conda:
 		"envs/bedtools.yml"
@@ -486,65 +460,72 @@ rule calculate_coverage_bigwig:
 ## POST-PROCESSING OF PEAKS ##
 ##############################
 
-# rule peaks_tsv_to_bed:
-# 	input:
-# 		PEAKCALLING_OUTDIR + "/peakachu.tsv"
-# 	output:
-# 		POSTPROCESSING_OUTDIR + "/peakachu.bed"
-# 	threads: 2
-# 	shell:
-# 		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
-# 		"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
+rule peaks_extend_frontiers:
+	input:
+		bed=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_binding_regions.bed",
+		genome=GENOME_SIZES
+	output:
+		POSTPROCESSING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed"
+	threads: 2
+	conda:
+		"envs/bedtools.yml"
+	shell:
+		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
+		"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
 
-# rule peaks_extend_frontiers:
-# 	input:
-# 		bed=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
-# 		genome=GENOME_SIZES
-# 	output:
-# 		POSTPROCESSING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed"
-# 	threads: 2
-# 	conda:
-# 		"envs/bedtools.yml"
-# 	shell:
-# 		"if [ ! -d {POSTPROCESSING_OUTDIR} ]; then mkdir {POSTPROCESSING_OUTDIR}; fi"
-# 		"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
-
-# rule find_robust_peaks:
-# 	input:
-# 		POSTPROCESSING_OUTDIR
-# 	output:
-# 		ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
-# 	threads: 2
-# 	conda:
-# 		"envs/bedtools.yml"
-# 	params:
-# 		output_folder=ROBUSTPEAKS_OUTDIR
-# 	shell:
-# 		"if [ ! -d {ROBUSTPEAKS_OUTDIR} ]; then mkdir {ROBUSTPEAKS_OUTDIR}; fi"
-# 		"&& .{config[find_robust_intersections]}/robust_intersections.sh {input} {output_folder} bed"
+rule find_robust_peaks:
+	input:
+		expand(POSTPROCESSING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
+	output:
+		ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
+	threads: 2
+	conda:
+		"envs/bedtools.yml"
+	params:
+		input_folder=POSTPROCESSING_OUTDIR,
+		output_folder=ROBUSTPEAKS_OUTDIR
+	shell:
+		"if [ ! -d {ROBUSTPEAKS_OUTDIR} ]; then mkdir {ROBUSTPEAKS_OUTDIR}; fi"
+		"&& {config[find_robust_intersections]}/robust_intersections.sh {params.input_folder} {params.output_folder} bed"
 
 #####################
 ## MOTIF DETECTION ##
 #####################
 
-# rule extract_genomic_DNA_dreme:
-# 	input:
-# 		POSTPROCESSING_OUTDIR + "/peakachu_extended.bed"
-# 	output:
-# 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-# 	threads: 2
-# 	shell:
-# 		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
-# 		"""&& awk 'NR>1 {{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
-# 		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {GENOME_FASTA}"
+rule extract_genomic_DNA_dreme:
+	input:
+		ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+	threads: 2
+	shell:
+		"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
+		"""&& awk '{{ print $1"\t"$2"\t"$3 }}' {input} > {MOTIF_DETECTION_OUTDIR}/peaks.bed3 """
+		"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output} {MOTIF_DETECTION_OUTDIR}/peaks.bed3 {GENOME_FASTA}"
 
-# rule meme_chip:
-# 	input: 
-# 		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
-# 	output:
-# 		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
-# 	threads: 4
-# 	conda:
-# 		"envs/meme_suite.yml"
-# 	shell:
-# 		"meme-chip {input} -oc {MOTIF_DETECTION_OUTDIR}/meme_chip {config[meme_chip]}"
+rule meme_chip:
+	input: 
+		MOTIF_DETECTION_OUTDIR + "/peaks.fa"
+	output:
+		MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+	threads: 4
+	conda:
+		"envs/meme_suite.yml"
+	shell:
+		"meme-chip {input} -oc {MOTIF_DETECTION_OUTDIR}/meme_chip {config[meme_chip]}"
+
+#################
+## END QUALITY ##
+#################
+
+rule multiqc:
+    input:
+    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
+    output:
+    	MULTIQC_OUTDIR + "/multiqc_report.html"
+    threads: 2
+    conda:
+    	"envs/multiqc.yml"
+    shell:
+    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"

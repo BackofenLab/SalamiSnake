@@ -6,11 +6,14 @@ SRC_PATH = os.getcwd()
 
 configfile: "config.yml"
 
-REF_GENOME_DIR= config['ref_genome_dir']
+REF_GENOME_DIR = config['ref_genome_dir']
 GENOME_FASTA = REF_GENOME_DIR + config['genome_fasta']
 GENOME_2BIT = REF_GENOME_DIR + config['genome_2bit']
 GENOME_GTF = REF_GENOME_DIR + config['genome_gtf']
 GENOME_SIZES = REF_GENOME_DIR + config['genome_sizes']
+
+control = "no"
+demultiplexed = "no"
 
 ###############
 ## FUNCTIONS ##
@@ -34,15 +37,36 @@ def find_all_values_on_key(key, dictionary):
 ## SAMPLE VARIABLES ##
 ######################
 
-FIRST_READS = list(find_all_values_on_key("r1", config['clip_samples'])) + list(find_all_values_on_key("r1", config['control_samples']))
-SECOND_READS = list(find_all_values_on_key("r2", config['clip_samples'])) + list(find_all_values_on_key("r2", config['control_samples']))
+FIRST_READS = list()
+SECOND_READS = list()
+CLIP_SAMPLES = list()
+CONTROL_SAMPLES = list()
+REPLICATES_CONTROL = list()
+
+if ( control == "yes" ):
+	FIRST_READS = list(find_all_values_on_key("r1", config['clip_samples'])) + list(find_all_values_on_key("r1", config['control_samples']))
+	SECOND_READS = list(find_all_values_on_key("r2", config['clip_samples'])) + list(find_all_values_on_key("r2", config['control_samples']))
+	CONTROL_SAMPLES = list(list_all_values_of_dict(config['control_samples']))
+	REPLICATES_CONTROL = list(config['control_samples'].keys())
+else:
+	FIRST_READS = list(find_all_values_on_key("r1", config['clip_samples']))
+	SECOND_READS = list(find_all_values_on_key("r2", config['clip_samples']))
+
 CLIP_SAMPLES = list(list_all_values_of_dict(config['clip_samples']))
-CONTROL_SAMPLES = list(list_all_values_of_dict(config['control_samples']))
 ALL_SAMPLES = CLIP_SAMPLES + CONTROL_SAMPLES
 
 REPLICATES_CLIP = list(config['clip_samples'].keys())
-REPLICATES_CONTROL = list(config['control_samples'].keys())
 ALL_REPLICATES = REPLICATES_CLIP + REPLICATES_CONTROL
+
+PAIR = ["r1", "r2"]
+REP_NAME_CLIP = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CLIP))]
+REP_NAME_CONTROL = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CONTROL))]
+
+SAMPLES = []
+if ( control == "yes" ):
+	SAMPLES = [REPLICATES_CLIP[0].split("_")[0], REPLICATES_CONTROL[0].split("_")[0]]
+else:
+	SAMPLES = [REPLICATES_CLIP[0].split("_")[0]]
 
 print("[NOTE] Loaded Samples.")
 print("All samples: " + str(ALL_SAMPLES))
@@ -50,18 +74,6 @@ print("CLIP samples: " + str(CLIP_SAMPLES))
 print("Conrol samples: " + str(CONTROL_SAMPLES))
 print("First read samples: " + str(FIRST_READS))
 print("Second read samples: " + str(SECOND_READS))
-
-num_peak_files = 5
-PEAK_FILES_FOR_MEME = [""] * num_peak_files
-for i in range(0,5):
-	peak_file = "peak_random_sample_" + str(i+1)
-	PEAK_FILES_FOR_MEME[i] = peak_file + "/" + peak_file
-
-PAIR = ["r1", "r2"]
-REP_NAME_CLIP = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CLIP))]
-REP_NAME_CONTROL = ["rep" + str(x+1) for x in range(0,len(REPLICATES_CONTROL))]
-SAMPLES = [REPLICATES_CLIP[0].split("_")[0], REPLICATES_CONTROL[0].split("_")[0]]
-
 print(SAMPLES)
 
 ######################
@@ -87,44 +99,72 @@ HTSEQ_COUNT_OUTDIR = config['sample_data_dir'] + "/" + config['htseq_outdir']
 DEDUPLICAITON_OUTDIR = config['sample_data_dir'] + "/" + config['deduplication_outdir']
 MATEFILTER_OUTDIR = config['sample_data_dir'] + "/" + config['matefilter_outdir']
 
+MULTIQC_OUTDIR = config['sample_data_dir'] + "/" + config['multiqc_outdir']
+
 ###################
 ## PREPROCESSING ##
 ###################
 
-rule all:
-	input: 
-		expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-		expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
-		expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-		expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
-		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		expand(DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
-		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
-		expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
-		expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf", 
-				sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
-		expand(HTSEQ_COUNT_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		expand(HTSEQ_COUNT_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)
+ALL_NEW_FILE_NAMES = []
+if ( control == "yes" ):
+	rule all:
+		input: 
+			expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+			expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
+			expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+			expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR),
+			REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+			expand(DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+			expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+			MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
+			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
+			expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf", 
+					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
+			expand(HTSEQ_COUNT_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(HTSEQ_COUNT_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+			MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
 
-ALL_NEW_FILE_NAMES = ["none"] * ((len(REPLICATES_CLIP) + len(REPLICATES_CONTROL)) * 2)
-i = 0 
-for j in REP_NAME_CLIP:
-	for k in PAIR:
-		ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[0] + "_" + j + "_" + k + ".fastqsanger"
-		i += 1
+	ALL_NEW_FILE_NAMES = ["none"] * ((len(REPLICATES_CLIP) + len(REPLICATES_CONTROL)) * 2)
+	i = 0 
+	for j in REP_NAME_CLIP:
+		for k in PAIR:
+			ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[0] + "_" + j + "_" + k + ".fastqsanger"
+			i += 1
 
-for j in REP_NAME_CONTROL:
-	for k in PAIR:
-		ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[1] + "_" + j + "_" + k + ".fastqsanger"
-		i += 1
+	for j in REP_NAME_CONTROL:
+		for k in PAIR:
+			ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[1] + "_" + j + "_" + k + ".fastqsanger"
+			i += 1
+else:
+	rule all:
+		input: 
+			expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+			expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+			REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
+			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_crosslinking_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+			expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf", 
+					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
+			expand(HTSEQ_COUNT_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+
+	ALL_NEW_FILE_NAMES = ["none"] * (len(REPLICATES_CLIP) * 2)
+	i = 0 
+	for j in REP_NAME_CLIP:
+		for k in PAIR:
+			ALL_NEW_FILE_NAMES[i] = RENAMING + "/" + SAMPLES[0] + "_" + j + "_" + k + ".fastqsanger"
+			i += 1
 
 rule renaming:
 	input:
@@ -182,9 +222,7 @@ rule cutadapt_first_read_clip:
 		"envs/cutadapt.yml"
 	shell:
 		"if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; fi"
-		"&& cutadapt -j {threads} --error-rate=0.1 --times=1 --overlap=5 -m 20 " 
-		"-a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG " 
-		"-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT"
+		"&& cutadapt -j {threads} {config[cutadapt]} " 
 		"--paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
 
 rule remove_tail:
@@ -686,3 +724,22 @@ rule peak_calling_quality:
 		"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > {output.htseq_hits} 2> {output.htseq_nohits} """
 		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in features: "SUM1; """
 		"""print "#culled reads: "SUM2; print "percentage reads in features: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_features}"""
+
+#################
+## END QUALITY ##
+#################
+
+rule multiqc:
+    input:
+    	beginning=expand(RENAMING + "/{sample}_{replicate}_{pair}.fastqsanger", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+    	trimming=expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
+    output:
+    	MULTIQC_OUTDIR + "multiqc_report.html"
+    threads: 2
+    conda:
+    	"envs/multiqc.yml"
+    shell:
+    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+    	"&& multiqc {input.beginning} {input.trimming} {input.dedup} {input.mapping} --outdir {MULTIQC_OUTDIR}"
