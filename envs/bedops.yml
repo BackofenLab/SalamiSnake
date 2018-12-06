@@ -1,0 +1,6 @@
+name: bedops
+channels:
+  - bioconda
+dependencies:
+  - bedops=2.4.35
+  - libstdcxx-ng >=4.9

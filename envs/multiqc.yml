@@ -1,0 +1,19 @@
+name: multiqc
+channels:
+  - bioconda
+dependencies:
+    - multiqc=1.6
+    - click
+    - future >0.14.0
+    - jinja2 >=2.9
+    - lzstring
+    - markdown
+    - matplotlib >=2.1.1
+    - numpy
+    - python >=3.6,<3.7.0a0
+    - pyyaml
+    - requests
+    - setuptools
+    - simplejson
+    - spectra >=0.0.10
+
