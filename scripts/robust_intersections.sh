@@ -27,17 +27,22 @@ for i in `seq 0 $numfiles`; do
     done
 done
 
-# between all intersections
-outfile_name=$INPUT_FOLDER"robust_between_all"
-a=${FILELIST[0]}
-for i in `seq 1 $numfiles`; do
-	outfile=$outfile_name"_"$i".bed"
-	b=${FILELIST[$i]}
-	echo $a
-	echo $b
-	bedtools intersect -a $a -b $b -s -wa -u -f 0.1 > $outfile
-	a=$outfile
-done
+#check if there are only two files 
+if [ $(($numfiles)) \> 1 ]; then
+    # between all intersections
+    outfile_name=$OUTPUT_FOLDER"robust_between_all"
+    a=${FILELIST[0]}
+    for i in `seq 1 $numfiles`; do
+    	outfile=$outfile_name"_"$i".bed"
+    	b=${FILELIST[$i]}
+    	echo $a
+    	echo $b
+    	bedtools intersect -a $a -b $b -s -wa -u -f 0.1 > $outfile
+    	a=$outfile
+    done
 
-mv $a $INPUT_FOLDER"robust_between_all.bed"
-rm $INPUT_FOLDER*"robust_between_all_"*".bed"
+    mv $a $OUTPUT_FOLDER"robust_between_all.bed"
+    rm $OUTPUT_FOLDER*"robust_between_all_"*".bed"
+else
+    mv $outfile $OUTPUT_FOLDER"robust_between_all.bed"
+fi

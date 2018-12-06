@@ -37,8 +37,8 @@ star:
 
 correlating_bam_files_plot:
         jobname: "CorBamPlot"
-        cores: "smp 10"
-        mem: "h_vmem=1G"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
@@ -60,6 +60,20 @@ piranha:
         jobname: "Piranha"
         cores: "smp 4"
         mem: "h_vmem=5G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+pureclip:
+        jobname: "PureCLIP"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+sort_beds:
+        jobname: "BedSort"
+        cores: "smp 1"
+        mem: "h_vmem=20G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 

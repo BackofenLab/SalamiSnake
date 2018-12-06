@@ -44,6 +44,7 @@ robust_peak_search_outdir: "robust_peak_search"
 motif_detection_outdir: "motif_detection"
 motif_search_outdir: "motif_search"
 matefilter_outdir:  "mate_filter"
+multiqc_outdir:  "multiqc"
 
 # tool directories
 bctools: "scripts"
@@ -56,7 +57,13 @@ dreme: "/scratch/bi01/heylf/miniconda3/bin"
 # Tool options #
 ################
 
+# PARCLIP
 cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
+#FLASH
+# cutadapt: &cutadapt >- 
+              # --error-rate=0.1 --times=1 --overlap=5 -m 20 
+              # -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG 
+              # -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
 got_umis_1: &got_umis_1 "-p NNNNNXXXXXXNN"
 got_umis_2: &got_umis_2 "-p NNNNNN"
 star: &star >-
@@ -71,6 +78,10 @@ star: &star >-
 umi_dedup: &umi_dedup "--random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --soft-clip-threshold 4 --subset 1.0"
 gc_bias: &gc_bias "--fragmentLength 300 --effectiveGenomeSize 2451960000"
 fingerprint: &fingerprint "--binSize 100"
+multiBamSummary: &multiBamSummary "--binSize '1000' --distanceBetweenBins '0'"
+plotCorrelation: &plotCorrelation >-
+                    --corMethod 'spearman' --whatToPlot 'heatmap' --colorMap 'RdYlBu'  
+                    --plotTitle '' --plotWidth 11.0 --plotHeight 9.5  --plotFileFormat 'png'
 estimate_insert_size: &estimate_insert_size >-
                       DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' 
                       METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR
@@ -87,7 +98,7 @@ meme_chip: &meme_chip >-
             -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna
 
 # PARCLIP
-all_tool_params: [*cutadapt, *star, *umi_dedup, *gc_bias, *fingerprint, *pureclip, *piranha, *peaks_extend_frontiers, *meme_chip]
+all_tool_params: [*cutadapt, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *pureclip, *piranha, *peaks_extend_frontiers, *meme_chip]
 
 #iCLIP
-#all_tool_params: [*cutadapt, *got_umis_1, *got_umis_2, *star, *umi_dedup, *gc_bias, *fingerprint, *estimate_insert_size, *pureclip, *extract_cl, *peaks_extend_frontiers, *meme_chip]
+#all_tool_params: [*cutadapt, *got_umis_1, *got_umis_2, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *estimate_insert_size, *pureclip, *extract_cl, *peaks_extend_frontiers, *meme_chip]
