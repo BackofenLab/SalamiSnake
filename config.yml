@@ -4,26 +4,46 @@
 ######################
 
 clip_samples:
-  ELAVL1_rep1: {r1: "SRR989636", r2: "_"}
-  ELAVL1_rep2: {r1: "SRR989637", r2: "_"}
+  Kiro_rep1: {r1: "Kiro_Cl8_Rb_XL10_rep1", r2: "Kiro_Cl8_Rb_XL10_rep1"}
 
 control_samples:
   #Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
+  IgG_rep1: {r1: "IgG_Cl8_Rb_XL10_rep1", r2: "IgG_Cl8_Rb_XL10_rep1"}
+
+multiplex_setup: {r1: "bbmerged_XL10_S10_R1", r2: "bbmerged_XL10_S10_R2"}
+
+protocol: "FLASH"
+paired: "yes"
+control: "yes"
+demultiplexed: "no"
+finished_demultiplexed: "yes"
+
+# provide barcodes in a tabular form like:
+# sample_1  barcode_1
+# sample_2  barcode_2
+# sample_3  barcode_3
+barcodes: "/scratch/bi03/heylf/Plamen/KIRO/Cl8_cells_FLASH/barcodes.txt"
 
 ###############
 # Directories #
 ###############
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Dinh/ELAVL1/friedersdorf"
+sample_data_dir: "/scratch/bi03/heylf/Plamen/KIRO/Cl8_cells_FLASH"
 
 # genome directories
-#hg19 
-ref_genome_dir: "/scratch/bi03/heylf/genomes/hg19"
-genome_fasta: "/GRCh37.p13.genome.fa"
-genome_2bit: "/hg19.2bit"
-genome_gtf: "/Genocode_hg19.gtf"
-genome_sizes: "/hg19_chr_sizes.txt"
+# hg19 
+# ref_genome_dir: "/scratch/bi03/heylf/genomes/hg19"
+# genome_fasta: "/GRCh37.p13.genome.fa"
+# genome_2bit: "/hg19.2bit"
+# genome_gtf: "/Genocode_hg19.gtf"
+# genome_sizes: "/hg19_chr_sizes.txt"
+# dm6 
+ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
+genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
+genome_2bit: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.2bit"
+genome_gtf: "/UCSC_dm6.gtf"
+genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
 
 # output directories
 renaming_outdir:  "renaming"
@@ -32,10 +52,12 @@ fastqc_adapt_outdir:  "fastqc_after_trimming"
 cutadapt_outdir:  "cutadapt"
 trim_galore_outdir: "trim_galore"
 remove_tail_outdir: "remove_tail"
+demulti_outdir: "demultiplexed"
 mapping_outdir: "mapping"
 mapping_quality_outdir: "mapping_quality"
 preprocessing_for_umi_outdir: "preprocessing_for_umi"
 deduplication_outdir: "deduplication"
+fastqc_before_dedup_outdir:  "fastqc_before_deduplication"
 fastqc_dedup_outdir:  "fastqc_after_deduplication"
 coverage_outdir:  "coverage"
 peakcalling_outdir:  "peakcalling"
@@ -45,6 +67,8 @@ motif_detection_outdir: "motif_detection"
 motif_search_outdir: "motif_search"
 matefilter_outdir:  "mate_filter"
 multiqc_outdir:  "multiqc"
+annotation_peaks_outdir: "annotation_peaks"
+htseq_outdir: "htseq_count"
 
 # tool directories
 bctools: "scripts"
@@ -53,29 +77,53 @@ extract_genomic_dna: "scripts"
 find_robust_intersections: "scripts"
 dreme: "/scratch/bi01/heylf/miniconda3/bin"
 
+# conda environment directory 
+conda_envs: "../../envs"
+# subworkflows
+rules: "rules"
+
 ################
 # Tool options #
 ################
 
+### CUTADAPT ###
 # PARCLIP
-cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
+# cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
 #FLASH
-# cutadapt: &cutadapt >- 
-              # --error-rate=0.1 --times=1 --overlap=5 -m 20 
-              # -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG 
-              # -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+cutadapt: &cutadapt >-
+              --error-rate=0.1 --times=1 --overlap=5 -m 20 
+              -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG 
+              -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+
+### REMOVE_TAIL ###
+# arbitrary
+#remove_tail: &remove_tail "10"
+# FLASH
+remove_tail: &remove_tail "13"
+
+### UMI_TOOLS ###
+# FLASH
 got_umis_1: &got_umis_1 "-p NNNNNXXXXXXNN"
 got_umis_2: &got_umis_2 "-p NNNNNN"
+umi_dedup: &umi_dedup "--random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --soft-clip-threshold 4 --subset 1.0 --paired"
+
+### DEMULTIPLEXING ###
+# FLASH
+demultiplex: &demultiplex >-
+              SAME_HEADERS=false BPOS=READ_2 BCLEN=6 C=true ADD=false MM=1 MMD=1 Q=10 QUALITY_FORMAT=Standard XT=0 ZT=0 RCHAR=: GZ=false 
+              KEEP_UNASSIGNED_READ=false STATS_ONLY=false
+
+### STAR ###
 star: &star >-
-    --outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None
+    --outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None 
     --outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10'
-    --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66' 
-    --outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0'
-    --seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0'
-    --alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66' 
+    --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66'  
+    --outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' 
+    --seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' 
+    --alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66'  
     --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
-    --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000'
-umi_dedup: &umi_dedup "--random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --soft-clip-threshold 4 --subset 1.0"
+    --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' 
+
 gc_bias: &gc_bias "--fragmentLength 300 --effectiveGenomeSize 2451960000"
 fingerprint: &fingerprint "--binSize 100"
 multiBamSummary: &multiBamSummary "--binSize '1000' --distanceBetweenBins '0'"
@@ -85,20 +133,32 @@ plotCorrelation: &plotCorrelation >-
 estimate_insert_size: &estimate_insert_size >-
                       DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' 
                       METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR
-pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+
+### PURECLIP ###
+# hg19
+# pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+# dm6 (small binding regions)
+pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
+
 piranha: &piranha "-s -p 0.05  -b 10 -i 10 -u 10 -d Poisson"
 # see my note to --pairwise_replicates 
 peakachu: &peackachu >-
           --max_insert_size 200 --features '' --sub_features '' --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 
           --norm_method deseq --mad_multiplier 0.0 --fc_cutoff 2.0 --padj_threshold 0.05 --pairwise_replicates 
-extract_cl: &extract_cl "--threeprime"
+
+### Extract CL ###
+# eCLIP
+#extract_cl: &extract_cl "--threeprime"
+# FLASH
+extract_cl: &extract_cl ""
+
 peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
 meme_chip: &meme_chip >-
             -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
             -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna
 
 # PARCLIP
-all_tool_params: [*cutadapt, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *pureclip, *piranha, *peaks_extend_frontiers, *meme_chip]
+all_tool_params: [*cutadapt, *remove_tail, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *pureclip, *piranha, *peaks_extend_frontiers, *meme_chip]
 
 #iCLIP
-#all_tool_params: [*cutadapt, *got_umis_1, *got_umis_2, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *estimate_insert_size, *pureclip, *extract_cl, *peaks_extend_frontiers, *meme_chip]
+#all_tool_params: [*cutadapt, *remove_tail, *got_umis_1, *got_umis_2, *star, *umi_dedup, *gc_bias, *fingerprint, *multiBamSummary, *plotCorrelation, *estimate_insert_size, *pureclip, *extract_cl, *peaks_extend_frontiers, *meme_chip]
