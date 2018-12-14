@@ -166,7 +166,7 @@ rule remove_tail:
 		"envs/bctools.yml"
 	shell:
 		"if [ ! -d {REMOVE_TAIL_OUTDIR} ]; then mkdir {REMOVE_TAIL_OUTDIR}; fi"
-		"&& python {config[bctools]}/remove_tail.py {input.first} 10 > {output.first}"
+		"&& python {config[bctools]}/remove_tail.py {input.first} {config[remove_tail]} > {output.first}"
 
 rule fastqc_after_adapter_removal:
     input:
