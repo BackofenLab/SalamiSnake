@@ -1,0 +1,6 @@
+name: je-suite
+channels:
+  - bioconda
+dependencies:
+  - je-suite=2.0.RC
+  - openjdk>=8
