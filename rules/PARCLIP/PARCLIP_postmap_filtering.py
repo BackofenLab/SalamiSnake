@@ -11,7 +11,7 @@ rule unique_reads_fitlering:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_unique_reads_fitlering.bam"
 	threads: 2
 	conda:
-		"envs/samtools.yml"
+		config["conda_envs"] + "/samtools.yml"
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h -F 0x100 {input} "
@@ -26,7 +26,7 @@ rule filter_out_unlocalized_regions_for_later_genome_versions:
 		bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai"
 	threads: 2
 	conda:
-		"envs/samtools.yml"
+		config["conda_envs"] + "/samtools.yml"
 	shell:
 		"samtools view -h {input} "
 		"""| awk -F "\t" 'BEGIN {{ OFS = FS }} {{ if ($0 ~ /^@/) {{print $0;}} else {{ if ($3 ~/^chr/) {{print $0;}} }} }}' """

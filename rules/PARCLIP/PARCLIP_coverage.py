@@ -10,7 +10,7 @@ rule bam_to_bed:
 		COVERAGE_OUTDIR + "/{sample}_{replicate}.bed"
 	threads: 2
 	conda:
-		"envs/bedtools.yml"
+		config["conda_envs"] + "/bedtools.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
 		"&& bedtools bamtobed -i {input} > {output}"
@@ -32,8 +32,8 @@ rule sort_beds:
 		COVERAGE_OUTDIR + "/{sample}_{replicate}_check_sorted.bed"
 	threads: 2
 	conda:
-		#"envs/bedtools.yml"
-		"envs/bedops.yml"
+		#config["conda_envs"] + "/bedtools.yml"
+		config["conda_envs"] + "/bedops.yml"
 	shell:
 		"&& sort-bed {input} > {output}"
 		#"&& bedtools sort -i {input} > {output}"
@@ -47,7 +47,7 @@ rule calculate_coverage:
 		bot=COVERAGE_OUTDIR + "/bedgraph/{sample}_{replicate}_coverage_both_strand.bedgraph"
 	threads: 4
 	conda:
-		"envs/bedtools.yml"
+		config["conda_envs"] + "/bedtools.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
 		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -bg -strand + > {output.pos}" 
@@ -61,7 +61,7 @@ rule calculate_coverage_bigwig:
 		COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_coverage_{type}_strand.bigwig"
 	threads: 4
 	conda:
-		"envs/bedGraphToBigWig.yml"
+		config["conda_envs"] + "/bedGraphToBigWig.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR}/bigwig ]; then mkdir {COVERAGE_OUTDIR}/bigwig; fi "
 		"&& bedGraphToBigWig {input} {GENOME_SIZES} {output}"

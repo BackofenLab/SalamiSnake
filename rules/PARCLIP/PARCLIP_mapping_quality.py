@@ -10,9 +10,10 @@ rule finger_print_plot:
 		MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png"
 	threads: 2
 	conda:
-		"envs/deeptools.yml"
+		config["conda_envs"] + "/deeptools.yml"
 	shell:	
 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& echo {config[fingerprint]} >> {file_tool_params}"
 		"&& plotFingerprint --numberOfProcessors {threads} --bamfiles {input} {config[fingerprint]} "
 		"--labels {ALL_REPLICATES} --plotFile {output}  --plotFileFormat 'png'"
 
@@ -24,9 +25,10 @@ rule correlating_bam_files_plot:
 		plot=MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png"
 	threads: 4
 	conda:
-		"envs/deeptools.yml"
+		config["conda_envs"] + "/deeptools.yml"
 	shell:	
 		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"	
+		"&& echo {config[multiBamSummary]} >> {file_tool_params}"
 		"&& multiBamSummary bins --numberOfProcessors {threads} --outFileName {output.bamsummary} --bamfiles {input} "
 		"--labels {ALL_REPLICATES} {config[multiBamSummary]} "
 		"&& plotCorrelation {config[plotCorrelation]} --corData {output.bamsummary} --plotFile {output.plot}"
@@ -38,7 +40,7 @@ rule fastqc_after_dedup:
     	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html"
     threads: 2
     conda:
-    	"envs/fastqc.yml"
+    	config["conda_envs"] + "/fastqc.yml"
     shell:
     	"if [ ! -d {FASTQC_DEDUP_OUTDIR} ]; then mkdir {FASTQC_DEDUP_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_DEDUP_OUTDIR}"
@@ -55,7 +57,7 @@ rule multiqc:
     	MULTIQC_OUTDIR + "/multiqc_report.html"
     threads: 2
     conda:
-    	"envs/multiqc.yml"
+    	config["conda_envs"] + "/multiqc.yml"
     shell:
     	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
     	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"

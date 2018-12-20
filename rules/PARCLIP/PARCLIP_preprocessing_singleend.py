@@ -11,7 +11,7 @@ rule fastqc_beginning:
     	FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.zip"
     threads: 2
     conda:
-    	"envs/fastqc.yml"
+    	config["conda_envs"] + "/fastqc.yml"
     shell:
     	"if [ ! -d {FASTQC_BEG_OUTDIR} ]; then mkdir {FASTQC_BEG_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_BEG_OUTDIR}"
@@ -25,9 +25,10 @@ rule cutadapt_adapter_trimming:
 		log=CUTADAPT_OUTDIR + "/{sample}_{replicate}.txt"
 	threads: 8 
 	conda:
-		"envs/cutadapt.yml"
+		config["conda_envs"] + "/cutadapt.yml"
 	shell:
 		"if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; fi"
+		"&& echo {config[cutadapt]} >> {file_tool_params}"
 		"&& cutadapt -j {threads} {config[cutadapt]} " 
 		"--output={output.seq_first} {input.first} > {output.log}"
 
@@ -39,9 +40,10 @@ rule remove_tail:
 		first=REMOVE_TAIL_OUTDIR + "/{samples}_{replicate}_r1_trimmed.fastqsanger"
 	threads: 2
 	conda:
-		"envs/bctools.yml"
+		config["conda_envs"] + "/bctools.yml"
 	shell:
 		"if [ ! -d {REMOVE_TAIL_OUTDIR} ]; then mkdir {REMOVE_TAIL_OUTDIR}; fi"
+		"&& echo {config[remove_tail]} >> {file_tool_params}"
 		"&& python {config[bctools]}/remove_tail.py {input.first} {config[remove_tail]} > {output.first}"
 
 rule fastqc_after_adapter_removal:
@@ -52,7 +54,7 @@ rule fastqc_after_adapter_removal:
     	FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.zip"
     threads: 2
     conda:
-    	"envs/fastqc.yml"
+    	config["conda_envs"] + "/fastqc.yml"
     shell:
     	"if [ ! -d {FASTQC_ADAPT_OUTDIR} ]; then mkdir {FASTQC_ADAPT_OUTDIR}; fi"
     	"&& fastqc {input} --outdir {FASTQC_ADAPT_OUTDIR}"
