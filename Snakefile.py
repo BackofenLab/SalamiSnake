@@ -2,6 +2,7 @@ import random
 import math
 import itertools as iter
 import os 
+import datetime
 from snakemake.utils import validate, min_version
 min_version("5.3.0")
 
@@ -52,10 +53,11 @@ def name_generation_samples(path, sample_name, replicate_names, pair_names, suff
 ## WRITE TOOL PARAMS TO LOG ##
 ##############################
 
-file_tool_params = open(config['sample_data_dir'] + "/tool_params.txt", "w")
-for i in config['all_tool_params']:
-	file_tool_params.write(i + "\n")
-file_tool_params.close()
+file_tool_params = config['sample_data_dir'] + "/tool_params.txt"
+file_tool_params_object = open(file_tool_params, "a")
+now = datetime.datetime.now()
+file_tool_params_object.write(str(now.day) +"/" + str(now.month) + "/" + str(now.year) + "\n")
+file_tool_params_object.close()
 
 ######################
 ## PATH DEFINITIONS ##
@@ -77,10 +79,13 @@ FASTQC_DEDUP_OUTDIR = config['sample_data_dir'] + "/" + config['fastqc_dedup_out
 COVERAGE_OUTDIR = config['sample_data_dir'] + "/" + config['coverage_outdir']
 
 PEAKCALLING_OUTDIR = config['sample_data_dir'] + "/" + config['peakcalling_outdir']
+ROBUSTPEAKS_OUTDIR = config['sample_data_dir'] + "/" + config['robust_peak_search_outdir']
 ANNOTATION_PEAKS_OUTDIR = config['sample_data_dir'] + "/" + config['annotation_peaks_outdir']
 HTSEQ_COUNT_OUTDIR = config['sample_data_dir'] + "/" + config['htseq_outdir']
 DEDUPLICAITON_OUTDIR = config['sample_data_dir'] + "/" + config['deduplication_outdir']
 MATEFILTER_OUTDIR = config['sample_data_dir'] + "/" + config['matefilter_outdir']
+MOTIF_DETECTION_OUTDIR = config['sample_data_dir'] + "/" + config['motif_detection_outdir']
+MOTIF_SEARCH_OUTDIR = config['sample_data_dir'] + "/" + config['motif_search_outdir']
 
 MULTIQC_OUTDIR = config['sample_data_dir'] + "/" + config['multiqc_outdir']
 
@@ -199,7 +204,7 @@ if ( PROTOCOL == "FLASH" ):
 	# Peakcalling
 	include: config["rules"] + "/FLASH/FLASH_peakcalling.py"
 	# # Peak Annotation
-	# #include: config["rules"] + "/FLASH/FLASH.misc.py"
+	include: config["rules"] + "/FLASH/FLASH_misc.py"
 elif ( PROTOCOL == "PARCLIP" ):
 	# Preprocessing (without demultiplexing)
 	include: config["rules"] + "/PARCLIP/PARCLIP_preprocessing_singleend.py"
@@ -228,9 +233,20 @@ if ( control == "yes" ):
 	if ( demultiplexed == "yes" ):
 		rule all:
 			input: 
-				expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-				
+				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+				MULTIQC_OUTDIR + "/multiqc_report.html",
+				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
+						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
+				expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf",
+						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
+				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"])
+
 		ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger") + name_generation_samples(RENAMING, SAMPLES[1], REP_NAME_CONTROL, PAIR, ".fastqsanger")
+	
 	else:
 		# if ( finished_demultiplexed == "no" ):
 		# 	rule all:
@@ -247,7 +263,7 @@ if ( control == "yes" ):
 		# 			sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
 		# 			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
 		# 			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
-		
+
 		rule all:
 			input: 
 				expand(DEMULTI_OUTDIR + "/{sample}_{replicate}_diag.log", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),
@@ -260,7 +276,7 @@ if ( control == "yes" ):
 				#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 				MULTIQC_OUTDIR + "/multiqc_report.html",
 				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
-				sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
+						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
 				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
 				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
 	
@@ -276,8 +292,11 @@ else:
 			MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
 			MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 			expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"])#,
-			# MOTIF_DETECTION_OUTDIR + "/meme_chip/meme-chip.html"
+			ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed",
+			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+			#expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
+			expand(MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_meme_chip/meme-chip.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP)#,
+			#expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{sample}_{replicate}_meme", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
 
 	ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger")
 
@@ -286,7 +305,7 @@ print(ALL_NEW_FILE_NAMES)
 
 rule renaming:
 	input:
-		expand(config['sample_data_dir'] + "/{all}.fastq", all=ALL_SAMPLES)
+		expand(config['sample_data_dir'] + "/{all}.fastqsanger", all=ALL_SAMPLES)
 	output:
 		file=ALL_NEW_FILE_NAMES,
 		log=RENAMING + "/renaming_log.txt"
