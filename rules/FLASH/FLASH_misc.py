@@ -7,9 +7,23 @@ import os
 #####################
 
 # PURECLIP
+rule intersect_binding_regions_with_peaks:
+	input:
+		binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions.bed",
+		annotation=GENOME_GTF
+	output:
+		ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf"
+	threads: 2
+	conda:
+		config["conda_envs"] + "/bedtools.yml"	
+	shell:
+		"if [ ! -d {ANNOTATION_PEAKS_OUTDIR} ]; then mkdir {ANNOTATION_PEAKS_OUTDIR}; fi "
+		"&& bedtools intersect -a {input.annotation} -b {input.binding_regions} -s -u -wa > {output}"
+
+# PEAKACHU
 # rule intersect_binding_regions_with_peaks:
 #     input:
-#     	binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions.bed",
+#     	binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}/peakachu.gtf",
 #     	annotation=GENOME_GTF
 #     output:
 #     	ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf"
@@ -18,21 +32,7 @@ import os
 # 		config["conda_envs"] + "/bedtools.yml"	
 #     shell:
 #     	"if [ ! -d {ANNOTATION_PEAKS_OUTDIR} ]; then mkdir {ANNOTATION_PEAKS_OUTDIR}; fi "
-#     	"&& bedtools intersect -a {input.annotation} -b {input.binding_regions} -s -u -wa > {output}"
-
-# PEAKACHU
-rule intersect_binding_regions_with_peaks:
-    input:
-    	binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}/peakachu.gtf",
-    	annotation=GENOME_GTF
-    output:
-    	ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf"
-    threads: 2
-    conda:
-		config["conda_envs"] + "/bedtools.yml"	
-    shell:
-    	"if [ ! -d {ANNOTATION_PEAKS_OUTDIR} ]; then mkdir {ANNOTATION_PEAKS_OUTDIR}; fi "
-    	"&& bedtools intersect -a {input.annotation} -b {input.binding_regions} -s -u -wa -f 0.1 > {output}"
+#     	"&& bedtools intersect -a {input.annotation} -b {input.binding_regions} -s -u -wa -f 0.1 > {output}"
 
 ####################
 ## HTSEQ ANALYSIS ##

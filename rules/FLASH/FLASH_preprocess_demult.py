@@ -28,6 +28,7 @@ rule cutadapt_first_read_clip:
 		config["conda_envs"] + "/cutadapt.yml"
 	shell:
 		"if [ ! -d {CUTADAPT_OUTDIR} ]; then mkdir {CUTADAPT_OUTDIR}; fi"
+		"&& echo {config[cutadapt]} >> {file_tool_params}"
 		"&& cutadapt -j {threads} {config[cutadapt]} " 
 		"--paired-output={output.seq_second} --output={output.seq_first} {input.first} {input.second} > {output.log}"
 
@@ -43,6 +44,7 @@ rule remove_tail:
 		config["conda_envs"] + "/bctools.yml"
 	shell:
 		"if [ ! -d {REMOVE_TAIL_OUTDIR} ]; then mkdir {REMOVE_TAIL_OUTDIR}; fi"
+		"&& echo {config[remove_tail]} >> {file_tool_params}"
 		"&& python {config[bctools]}/remove_tail.py {input.first} {config[remove_tail]} > {output.first}"
 		"&& cp {input.second} {output.second}"
 
@@ -73,6 +75,7 @@ rule got_umis:
 		config["conda_envs"] + "/umi.yml"
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi "
+		"&& echo {config[got_umis_1]} >> {file_tool_params}"
 		"&& umi_tools extract {config[got_umis_1]} -I {input.second} -S {output.second} --read2-in {input.first} --read2-out {output.first} -L {output.log}"
 
 rule demultiplex:
@@ -90,6 +93,7 @@ rule demultiplex:
 		outdir=DEMULTI_OUTDIR
 	shell:
 		"if [ ! -d {DEMULTI_OUTDIR} ]; then mkdir {DEMULTI_OUTDIR}; fi "
+		"&& echo {config[demultiplex]} >> {file_tool_params}"
 		"&& je demultiplex F1={input.first} F2={input.second} BARCODE_FILE={input.barcodes} {config[demultiplex]} "
 		"OUTPUT_DIR={params.outdir} BARCODE_DIAG_FILE={output.diag} METRICS_FILE_NAME={params.outdir}/metric.txt"
 

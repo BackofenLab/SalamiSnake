@@ -43,6 +43,7 @@ if ( control == "yes" ):
 			config["conda_envs"] + "/pureclip.yml"
 		shell:
 			"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
+			"&& echo {config[pureclip]} >> {file_tool_params}"
 			"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
 			"-ibam {input.control} -ibai {input.control_bai} -or {output.binding_regions} -p {params.parameters} -nt {threads} -nta {threads} {config[pureclip]} "
 
@@ -56,7 +57,8 @@ if ( control == "yes" ):
 		conda:
 			config["conda_envs"] + "/bedtools.yml"
 		shell:
-			"bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
+			"echo {config[peaks_extend_frontiers]} >> {file_tool_params}"
+			"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
 else:
 
 	rule piranha:
@@ -69,6 +71,7 @@ else:
 		threads: 2 
 		shell:
 			"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+			"&& echo {config[piranha]} >> {file_tool_params}"
 			"&& Piranha {config[piranha]} {input} -o {output}"	
 
 	# rule pureclip:
@@ -87,6 +90,7 @@ else:
 	# 		config["conda_envs"] + "/pureclip.yml"
 	# 	shell:
 	# 		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
+	#		"&& echo {config[pureclip]} >> {file_tool_params}"
 	# 		"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
 	# 		"-or {output.binding_regions} -p {params.parameters} -nt {threads} -nta {threads} {config[pureclip]} "
 
@@ -100,7 +104,8 @@ else:
 		conda:
 			config["conda_envs"] + "/bedtools.yml"
 		shell:
-			"bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"	
+			"echo {config[peaks_extend_frontiers]} >> {file_tool_params}"
+			"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
 
 # rule peakachu:
 #     input:
@@ -116,6 +121,7 @@ else:
 #     shell:
 #     	#"--max_proc "${GALAXY_SLOTS:-1}"
 #     	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+#		"&& echo {config[peakachu]} >> {file_tool_params}"
 #     	"&& source activate peakachu"
 #     	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} {config[peakachu]} --output_folder {PEAKCALLING_OUTDIR} "
 #     	"&& source deactivate "

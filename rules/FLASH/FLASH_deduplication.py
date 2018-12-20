@@ -30,6 +30,7 @@ rule deduplication:
 		config["conda_envs"] + "/umi.yml"
 	shell:
 		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi "
+		"&& echo {config[umi_dedup]} >> {file_tool_params}"
 		"&& umi_tools dedup {config[umi_dedup]} -I {input} -S {output.bam} -L {output.log}"
 		"&& samtools sort {output.bam} > {output.sorted_bam}"
 		"&& samtools index {output.sorted_bam}"
