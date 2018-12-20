@@ -28,6 +28,7 @@ rule extract_crosslinking_position:
 	threads: 2
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR} ]; then mkdir {COVERAGE_OUTDIR}; fi"
+		"&& echo {config[extract_cl]} >> {file_tool_params}"
 		"&& python {config[bctools]}/coords2clnt.py {config[extract_cl]} {input} > {output}"
 
 # Rule to check if the end coordinate is 0. It happened in a test-run.
