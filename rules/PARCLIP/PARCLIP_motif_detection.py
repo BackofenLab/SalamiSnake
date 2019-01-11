@@ -27,7 +27,7 @@ rule meme_chip:
 		outdir=MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_meme_chip"
 	shell:
 		"echo {config[meme_chip]} >> {file_tool_params}"
-		"&& meme-chip {input} -oc {params.outdir} {config[meme_chip]}"
+		"&& meme-chip -meme-p {threads} {config[meme_chip]} -oc {params.outdir} {input}"
 
 # ##################
 # ## MOTIF SEARCH ##

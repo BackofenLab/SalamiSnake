@@ -35,7 +35,7 @@ rule sort_beds:
 		#config["conda_envs"] + "/bedtools.yml"
 		config["conda_envs"] + "/bedops.yml"
 	shell:
-		"&& sort-bed {input} > {output}"
+		"sort-bed {input} > {output}"
 		#"&& bedtools sort -i {input} > {output}"
 
 rule calculate_coverage:

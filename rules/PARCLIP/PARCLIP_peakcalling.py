@@ -20,42 +20,42 @@
 # 		"&& samtools sort {output.bam} > {output.sorted_bam}"
 # 		"&& samtools index {output.sorted_bam}"
 
-# rule piranha:
-# 	input:
-# 		MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-# 	output:
-# 		PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks.bed"
-# 	conda:
-# 		config["conda_envs"] + "/piranha.yml"
-# 	threads: 2 
-# 	shell:
-# 		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
-#		"&& echo {config[prianha]} >> {file_tool_params}"
-# 		"&& Piranha {config[prianha]} {input} -o {output}"
-
-rule pureclip:
+rule piranha:
 	input:
-		experiment=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam",
-		experiment_bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai",
-		genome_fasta=GENOME_FASTA
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 	output:
-		crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
-		binding_regions=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_binding_regions.bed"
-	threads: 4
-	params:
-		tmp=PEAKCALLING_OUTDIR + "/tmp/",
-		parameters=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_parameters.txt"
+		PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks.bed"
 	conda:
-		config["conda_envs"] + "/pureclip.yml"
+		config["conda_envs"] + "/piranha.yml"
+	threads: 2 
 	shell:
-		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
-		"&& echo {config[pureclip]} >> {file_tool_params}"
-		"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
-		"-or {output.binding_regions} -p {params.parameters} -nt {threads} -nta {threads} {config[pureclip]} "
+		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+		"&& echo {config[piranha]} >> {file_tool_params}"
+		"&& Piranha {config[piranha]} {input} -o {output}"
+
+# rule pureclip:
+# 	input:
+# 		experiment=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam",
+# 		experiment_bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai",
+# 		genome_fasta=GENOME_FASTA
+# 	output:
+# 		crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
+# 		binding_regions=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_binding_regions.bed"
+# 	threads: 10
+# 	params:
+# 		tmp=PEAKCALLING_OUTDIR + "/tmp/",
+# 		parameters=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_parameters.txt"
+# 	conda:
+# 		config["conda_envs"] + "/pureclip.yml"
+# 	shell:
+# 		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
+# 		"&& echo {config[pureclip]} >> {file_tool_params}"
+# 		"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
+# 		"-or {output.binding_regions} -p {params.parameters} -nt {threads} {config[pureclip]} "
 
 rule peaks_extend_frontiers:
 	input:
-		bed=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_binding_regions.bed",
+		bed=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks.bed",
 		genome=GENOME_SIZES
 	output:
 		PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed"
