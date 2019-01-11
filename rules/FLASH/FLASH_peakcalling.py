@@ -35,7 +35,7 @@ if ( control == "yes" ):
 		output:
 			crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_crosslinkind_sites.bed",
 			binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions.bed",
-		threads: 4
+		threads: 10
 		params:
 			tmp=PEAKCALLING_OUTDIR + "/tmp/",
 			parameters=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_parameters.txt"
@@ -45,7 +45,7 @@ if ( control == "yes" ):
 			"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
 			"&& echo {config[pureclip]} >> {file_tool_params}"
 			"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
-			"-ibam {input.control} -ibai {input.control_bai} -or {output.binding_regions} -p {params.parameters} -nt {threads} -nta {threads} {config[pureclip]} "
+			"-ibam {input.control} -ibai {input.control_bai} -or {output.binding_regions} -p {params.parameters} -nt {threads} {config[pureclip]} "
 
 	rule peaks_extend_frontiers:
 		input:
@@ -82,7 +82,7 @@ else:
 	# 	output:
 	# 		crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
 	# 		binding_regions=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_binding_regions.bed",
-	# 	threads: 4
+	# 	threads: 10
 	# 	params:
 	# 		tmp=PEAKCALLING_OUTDIR + "/tmp/",
 	# 		parameters=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_parameters.txt"
@@ -92,7 +92,7 @@ else:
 	# 		"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
 	#		"&& echo {config[pureclip]} >> {file_tool_params}"
 	# 		"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
-	# 		"-or {output.binding_regions} -p {params.parameters} -nt {threads} -nta {threads} {config[pureclip]} "
+	# 		"-or {output.binding_regions} -p {params.parameters} -nt {threads} {config[pureclip]} "
 
 	rule peaks_extend_frontiers:
 		input:
