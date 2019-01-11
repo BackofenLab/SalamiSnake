@@ -72,8 +72,8 @@ piranha:
 
 pureclip:
         jobname: "PureCLIP"
-        cores: "smp 4"
-        mem: "h_vmem=10G"
+        cores: "smp 10"
+        mem: "h_vmem=4G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 

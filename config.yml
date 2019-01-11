@@ -4,23 +4,29 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Dinh/ELAVL1/Friedersdorf"
+sample_data_dir: "/scratch/bi03/heylf/Marc/YY1"
 
 clip_samples:
-  ELAVL1_rep1: {r1: "SRR989636", r2: "-"}
-  ELAVL1_rep2: {r1: "SRR989637", r2: "-"}
+  #ELAVL1_rep1: {r1: "SRR653239", r2: "-"}
+  # ELAVL1_rep2: {r1: "SRR189778", r2: "-"}
+  # ELAVL1_rep3: {r1: "SRR189779", r2: "-"}
+  # ELAVL1_rep4: {r1: "SRR189780", r2: "-"}
+  # ELAVL1_rep5: {r1: "SRR189781", r2: "-"}
+  YY1_rep1: {r1: "UV_YY1_R1", r2: "UV_YY1_R2"}
+
 
 control_samples:
   #Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
-  #IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
+  IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
 
-multiplex_setup: {r1: "bbmerged_XL10_S10_R1", r2: "bbmerged_XL10_S10_R2"}
+multiplex_setup: {r1: "", r2: ""}
 
-protocol: "PARCLIP"
+protocol: "FLASH"
 paired: "yes"
-control: "no"
+control: "yes"
 demultiplexed: "yes"
-finished_demultiplexed: "yes"
+
+#finished_demultiplexed: "yes"
 
 # provide barcodes in a tabular form like:
 # sample_1  barcode_1
@@ -30,11 +36,11 @@ barcodes: ""
 
 # genome directories
 # hg19 
-ref_genome_dir: "/scratch/bi03/heylf/genomes/hg19"
-genome_fasta: "/GRCh37.p13.genome.fa"
-genome_2bit: "/hg19.2bit"
-genome_gtf: "/Genocode_hg19.gtf"
-genome_sizes: "/hg19_chr_sizes.txt"
+# ref_genome_dir: "/scratch/bi03/heylf/genomes/hg19"
+# genome_fasta: "/GRCh37.p13.genome.fa"
+# genome_2bit: "/hg19.2bit"
+# genome_gtf: "/Genocode_hg19.gtf"
+# genome_sizes: "/hg19_chr_sizes.txt"
 # dm6 
 # ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
 # genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
@@ -42,11 +48,11 @@ genome_sizes: "/hg19_chr_sizes.txt"
 # genome_gtf: "/UCSC_dm6.gtf"
 # genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
 # mm10
-# ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
-# genome_fasta: "/mm10.fa"
-# genome_2bit: "/mm10.2bit"
-# genome_gtf: "/MM_GRCm38.92.changedchrname.gtf"
-# genome_sizes: "/mm10_chr_sizes.txt"
+ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
+genome_fasta: "/mm10.fa"
+genome_2bit: "/mm10.2bit"
+genome_gtf: "/MM_GRCm38.92.changedchrname.gtf"
+genome_sizes: "/mm10_chr_sizes.txt"
 
 ###############
 # Directories #
@@ -144,12 +150,18 @@ estimate_insert_size: &estimate_insert_size >-
 ### PURECLIP ###
 # hg19
 pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+# pureclip: &pureclip "-bdw 10 -bdwn 10 -iv 'chr1;chr2;chr3;'"
 # dm6 (small binding regions)
 # pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
 # mm10 
 # pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
 
-piranha: &piranha "-s -p 0.05  -b 10 -i 10 -u 10 -d Poisson"
+### PIRANHA ###
+# dm6
+# piranha: &piranha "-s -p 0.05  -b 10 -i 10 -u 10 -d Poisson"
+# hg19
+piranha: &piranha "-s -p 0.05 -b 50 -i 50 -u 10"
+
 # see my note to --pairwise_replicates 
 peakachu: &peakachu >-
           --max_insert_size 200 --features '' --sub_features '' --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 
@@ -163,5 +175,5 @@ extract_cl: &extract_cl ""
 
 peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
 meme_chip: &meme_chip >-
-            -norc -order 1 -nmeme 1000 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
-            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna
+            -norc -order 1 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
+            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna -seed 123
