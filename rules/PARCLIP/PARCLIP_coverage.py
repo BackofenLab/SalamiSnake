@@ -50,9 +50,9 @@ rule calculate_coverage:
 		config["conda_envs"] + "/bedtools.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
-		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -bg -strand + > {output.pos}" 
-		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -bg -strand - > {output.neg}" 
-		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -bg > {output.bot}" 
+		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -dz -strand + > {output.pos}" 
+		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -dz -strand - > {output.neg}" 
+		"&& genomeCoverageBed -i {input} -g {GENOME_SIZES} -dz > {output.bot}" 
 
 rule calculate_coverage_bigwig:
 	input:
