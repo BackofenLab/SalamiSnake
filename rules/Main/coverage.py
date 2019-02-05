@@ -75,12 +75,12 @@ rule calculate_coverage:
 		config["conda_envs"] + "/bedtools.yml"
 	shell:
 		"if [ ! -d {COVERAGE_OUTDIR}/bedgraph ]; then mkdir {COVERAGE_OUTDIR}/bedgraph; fi"
-		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -bg -strand + > {output.cl_pos}" 
-		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -bg -strand - > {output.cl_neg}" 
-		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -bg > {output.cl_bot}" 
-		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -bg -strand + > {output.alends_pos}"
-		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -bg -strand - > {output.alends_ned}" 
-		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -bg > {output.alends_bot}" 
+		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -d -bg -strand + > {output.cl_pos}" 
+		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -d -bg -strand - > {output.cl_neg}" 
+		"&& genomeCoverageBed -i {input.cl} -g {GENOME_SIZES} -d -bg > {output.cl_bot}" 
+		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -d -bg -strand + > {output.alends_pos}"
+		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -d -bg -strand - > {output.alends_ned}" 
+		"&& genomeCoverageBed -i {input.alends} -g {GENOME_SIZES} -d -bg > {output.alends_bot}" 
 
 rule calculate_coverage_bigwig:
 	input:
