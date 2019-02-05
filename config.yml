@@ -4,7 +4,7 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Marc/YY1"
+sample_data_dir: "/scratch/bi03/heylf/Marc/YY1_CLIP"
 
 clip_samples:
   #ELAVL1_rep1: {r1: "SRR653239", r2: "-"}
@@ -12,23 +12,29 @@ clip_samples:
   # ELAVL1_rep3: {r1: "SRR189779", r2: "-"}
   # ELAVL1_rep4: {r1: "SRR189780", r2: "-"}
   # ELAVL1_rep5: {r1: "SRR189781", r2: "-"}
-  YY1_rep1: {r1: "UV_YY1_R1", r2: "UV_YY1_R2"}
+  YY1_rep1: {r1: "SRR1991264", r2: "-"}
+  #YY1_rep1: {r1: "UV_YY1_R1", r2: "UV_YY1_R2"}
 
 
 control_samples:
   #Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
-  IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
+  Input_rep1: {r1: "SRR1991265", r2: "-"}
+  #IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
 
-multiplex_setup: {r1: "", r2: ""}
+multiplex_setup: {r1: "SRR1991265", r2: "-"}
 
-protocol: "FLASH"
-paired: "yes"
+protocol: "PARCLIP"
+paired: "no"
 control: "yes"
 demultiplexed: "yes"
 
-#finished_demultiplexed: "yes"
+# Peakcaller
+peakcaller: "PureCLIP"
+# peakcaller: "Piranha"
+# peakcaller: "PEAKachu"
 
-# provide barcodes in a tabular form like:
+# give path to a file which provides
+# barcodes for demultiplexing in a tabular form like:
 # sample_1  barcode_1
 # sample_2  barcode_2
 # sample_3  barcode_3
@@ -41,18 +47,21 @@ barcodes: ""
 # genome_2bit: "/hg19.2bit"
 # genome_gtf: "/Genocode_hg19.gtf"
 # genome_sizes: "/hg19_chr_sizes.txt"
+# annotation_gtf: "/Genocode_hg19.gtf"
 # dm6 
 # ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
 # genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
 # genome_2bit: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.2bit"
 # genome_gtf: "/UCSC_dm6.gtf"
 # genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
+# annotation_gtf: "/UCSC_dm6.gtf"
 # mm10
 ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
 genome_fasta: "/mm10.fa"
 genome_2bit: "/mm10.2bit"
 genome_gtf: "/MM_GRCm38.92.changedchrname.gtf"
 genome_sizes: "/mm10_chr_sizes.txt"
+annotation_gtf: "/MM_GRCm38.92.changedchrname.gtf"
 
 ###############
 # Directories #
@@ -82,6 +91,7 @@ matefilter_outdir:  "mate_filter"
 multiqc_outdir:  "multiqc"
 annotation_peaks_outdir: "annotation_peaks"
 htseq_outdir: "htseq_count"
+structure_predic_outdir: "structure_prediction"
 
 # tool directories
 bctools: "scripts"
@@ -101,7 +111,9 @@ rules: "rules"
 
 ### CUTADAPT ###
 # PARCLIP
-cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
+# cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
+cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCGGGTGCCAAGG"
+
 #FLASH
 # cutadapt: &cutadapt >-
 #               --error-rate=0.1 --times=1 --overlap=5 -m 20 
@@ -110,7 +122,7 @@ cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGT
 
 ### REMOVE_TAIL ###
 # arbitrary
-remove_tail: &remove_tail "10"
+remove_tail: &remove_tail "1"
 # FLASH
 # remove_tail: &remove_tail "13"
 
@@ -127,15 +139,19 @@ demultiplex: &demultiplex >-
               KEEP_UNASSIGNED_READ=false STATS_ONLY=false
 
 ### STAR ###
-star: &star >-
+star_all: &star_all >-
     --outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None 
     --outSAMprimaryFlag OneBestScore --outSAMmapqUnique '255' --outFilterType Normal --outFilterMultimapScoreRange '1' --outFilterMultimapNmax '10'
-    --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0' --outFilterScoreMinOverLread '0.66'  
-    --outFilterMatchNmin '0' --outFilterMatchNminOverLread '0.66'   --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' 
+    --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0'
+    --outFilterMatchNmin '0' --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' 
     --seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' 
     --alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66'  
     --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
     --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' 
+# long reads 
+# star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
+# small reads 
+star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
 
 gc_bias: &gc_bias "--fragmentLength 300 --effectiveGenomeSize 2451960000"
 fingerprint: &fingerprint "--binSize 100"
@@ -149,12 +165,12 @@ estimate_insert_size: &estimate_insert_size >-
 
 ### PURECLIP ###
 # hg19
-pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+# pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
 # pureclip: &pureclip "-bdw 10 -bdwn 10 -iv 'chr1;chr2;chr3;'"
 # dm6 (small binding regions)
 # pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
 # mm10 
-# pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
+pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
 
 ### PIRANHA ###
 # dm6
@@ -177,3 +193,6 @@ peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
 meme_chip: &meme_chip >-
             -norc -order 1 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
             -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna -seed 123
+fimo: &fimo "--alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1"
+annotation: &annotation "-s -u -wa"
+rnafold: &rnafold "-p --MEA -d2 --noPS"
