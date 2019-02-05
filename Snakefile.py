@@ -15,12 +15,13 @@ GENOME_FASTA = REF_GENOME_DIR + config['genome_fasta']
 GENOME_2BIT = REF_GENOME_DIR + config['genome_2bit']
 GENOME_GTF = REF_GENOME_DIR + config['genome_gtf']
 GENOME_SIZES = REF_GENOME_DIR + config['genome_sizes']
+ANNOTATION_GTF = REF_GENOME_DIR + config['annotation_gtf']
 
 PROTOCOL = config["protocol"]
 paired = config["paired"]
 control = config["control"]
 demultiplexed = config["demultiplexed"]
-#finished_demultiplexed = config["finished_demultiplexed"]
+peakcaller = config["peakcaller"]
 
 ###############
 ## FUNCTIONS ##
@@ -89,6 +90,7 @@ DEDUPLICAITON_OUTDIR = config['sample_data_dir'] + "/" + config['deduplication_o
 MATEFILTER_OUTDIR = config['sample_data_dir'] + "/" + config['matefilter_outdir']
 MOTIF_DETECTION_OUTDIR = config['sample_data_dir'] + "/" + config['motif_detection_outdir']
 MOTIF_SEARCH_OUTDIR = config['sample_data_dir'] + "/" + config['motif_search_outdir']
+STRUCTURE_PREDIC_OUTDIR = config['sample_data_dir'] + "/" + config['structure_predic_outdir']
 
 MULTIQC_OUTDIR = config['sample_data_dir'] + "/" + config['multiqc_outdir']
 
@@ -195,43 +197,37 @@ if ( PROTOCOL == "FLASH" ):
 	else:
 		# Preprocessing (with demultiplexing)
 		include: config["rules"] + "/FLASH/FLASH_preprocess_demult.py"
-	# Mapping
 	include: config["rules"] + "/Main/mapping.py"
-	# Postmap Filtering
 	include: config["rules"] + "/FLASH/FLASH_postmap_filtering.py"
-	# Deduplication
 	include: config["rules"] + "/FLASH/FLASH_deduplication.py"
-	# Mapping Quality
 	include: config["rules"] + "/FLASH/FLASH_mapping_quality.py"
-	# Coverage
-	include: config["rules"] + "/Main/coverage.py"
-	# Peakcalling
 	include: config["rules"] + "/FLASH/FLASH_peakcalling.py"
-	# # Peak Annotation
-	include: config["rules"] + "/FLASH/FLASH_misc.py"
-	# Motif Detection
-	include: config["rules"] + "/FLASH/FLASH_motif_detection.py"
+	include: config["rules"] + "/Main/misc.py"
+	include: config["rules"] + "/Main/motif_detection.py"
 elif ( PROTOCOL == "PARCLIP" ):
 	# Preprocessing (without demultiplexing)
 	include: config["rules"] + "/PARCLIP/PARCLIP_preprocessing_singleend.py"
-	# Mapping
 	include: config["rules"] + "/Main/mapping_singleend.py"
-	# Postmap Filtering
 	include: config["rules"] + "/PARCLIP/PARCLIP_postmap_filtering.py"
-	# Mapping Quality
 	include: config["rules"] + "/PARCLIP/PARCLIP_mapping_quality.py"
-	# Coverage
-	include: config["rules"] + "/PARCLIP/PARCLIP_coverage.py"
-	# Peakcalling
 	include: config["rules"] + "/PARCLIP/PARCLIP_peakcalling.py"
-	# Motif Detection
-	include: config["rules"] + "/PARCLIP/PARCLIP_motif_detection.py"
+	include: config["rules"] + "/Main/misc.py"
+	include: config["rules"] + "/Main/motif_detection.py"
+	include: config["rules"] + "/Main/structure_prediction.py"
+elif ( PROTOCOL == "ChIP" ):
+	# Preprocessing (without demultiplexing)
+	include: config["rules"] + "/ChIP/ChIP_preprocessing_singleend.py"
+	include: config["rules"] + "/Main/mapping.py"
+	include: config["rules"] + "/ChIP/ChIP_postmap_filtering.py"
+	include: config["rules"] + "/ChIP/ChIP_mapping_quality.py"
+	include: config["rules"] + "/ChIP/ChIP_peakcalling.py"
+	include: config["rules"] + "/Main/misc.py"
 else:
 	sys.exit("[ERROR] Protocol not provided yet.")
 
-############################
+###########################
 ## INVOCATION (RULE ALL) ##
-############################
+###########################
 
 ALL_NEW_FILE_NAMES = []
 
@@ -248,8 +244,6 @@ if ( control == "yes" ):
 						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
 				expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf",
 						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
-				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
-				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
 				expand(MOTIF_DETECTION_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_meme_chip/meme-chip.html", 
 						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
 
@@ -268,9 +262,7 @@ if ( control == "yes" ):
 				#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 				MULTIQC_OUTDIR + "/multiqc_report.html",
 				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
-						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
-				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
-				expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, type=["pos", "neg", "both"]),
+						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
 	
 		ALL_SAMPLES = DEMULTIPLEX_SAMPLES
 		ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, MULTIPLEX_SAMPLE_NAME, ["rep1"], PAIR, ".fastqsanger")
@@ -285,9 +277,8 @@ else:
 			#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 			expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed",
-			expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
-			#expand(COVERAGE_OUTDIR + "/bigwig/{sample}_{replicate}_alignment_ends_coverage_{type}_strand.bigwig", sample=SAMPLES[0], replicate=REP_NAME_CLIP, type=["pos", "neg", "both"]),
-			expand(MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_meme_chip/meme-chip.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP)#,
+			expand(MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_meme_chip/meme-chip.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			expand(STRUCTURE_PREDIC_OUTDIR + "/{sample}_{replicate}_structures.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
 			#expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{sample}_{replicate}_meme", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
 
 	ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger")
