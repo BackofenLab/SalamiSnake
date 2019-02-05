@@ -133,4 +133,10 @@ fimo_for_meme_output:
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
+rna_structure_prediction:
+        jobname: "Structure"
+        cores: "smp 4"
+        mem: "h_vmem=5G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
