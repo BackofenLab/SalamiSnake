@@ -23,7 +23,7 @@ for i in `seq 0 $numfiles`; do
     	b=${b//.$INPUT_FORMAT/}
     	b=${b//$INPUT_FOLDER/}
     	outfile=$OUTPUT_FOLDER$a"_vs_"$b".bed"
-		bedtools intersect -a ${FILELIST[$i]} -b ${FILELIST[$j]} -s -wa -u -f 0.1 > $outfile
+		bedtools intersect -a ${FILELIST[$i]} -b ${FILELIST[$j]} -s -u -f 0.1 > $outfile
     done
 done
 
@@ -37,7 +37,7 @@ if [ $(($numfiles)) \> 1 ]; then
     	b=${FILELIST[$i]}
     	echo $a
     	echo $b
-    	bedtools intersect -a $a -b $b -s -wa -u -f 0.1 > $outfile
+    	bedtools intersect -a $a -b $b -s -u -f 0.1 > $outfile
     	a=$outfile
     done
 
