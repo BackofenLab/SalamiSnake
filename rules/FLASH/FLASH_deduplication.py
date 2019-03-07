@@ -27,7 +27,7 @@ rule deduplication:
 		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
 	threads: 2
 	conda:
-		config["conda_envs"] + "/umi.yml"
+		config["conda_envs"] + "/umi.yml"  # samtools alreads included
 	shell:
 		"if [ ! -d {DEDUPLICAITON_OUTDIR} ]; then mkdir {DEDUPLICAITON_OUTDIR}; fi "
 		"&& echo {config[umi_dedup]} >> {file_tool_params}"
