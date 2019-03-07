@@ -7,13 +7,6 @@ __default__:
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
-star_generate_index_for_genome:
-        jobname: "STAR_Indexing"
-        cores: "smp 4"
-        mem: "h_vmem=10G"
-        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
-        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
-
 cutadapt_adapter_trimming:
         jobname: "Cutadapt_1"
         cores: "smp 8"
@@ -35,8 +28,29 @@ demultiplex:
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
+star_generate_index_for_genome:
+        jobname: "STAR_Indexing"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
 star:
         jobname: "STAR"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+bowtie2_generate_index_for_genome:
+        jobname: "Bowtie2_Indexing"
+        cores: "smp 4"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+bowtie2:
+        jobname: "Bowtie2"
         cores: "smp 4"
         mem: "h_vmem=10G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
@@ -72,6 +86,13 @@ piranha:
 
 pureclip:
         jobname: "PureCLIP"
+        cores: "smp 10"
+        mem: "h_vmem=4G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+macs2:
+        jobname: "MACS2"
         cores: "smp 10"
         mem: "h_vmem=4G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
