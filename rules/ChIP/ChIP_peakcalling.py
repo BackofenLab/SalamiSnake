@@ -1,60 +1,82 @@
-import random
-import math
-import os 
 
 #################
 ## PEAKCALLING ##
 #################
 
-# BE CAREFUL when using other protocols then you might need to define a different bitflag!!
-rule mate_reads_fitlering:
-	input:
-		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-	output:
-		bam=MATEFILTER_OUTDIR + "/{sample}_{replicate}.bam",
-		bam_pos=MATEFILTER_OUTDIR + "/{sample}_{replicate}_pos.bam",
-		bam_neg=MATEFILTER_OUTDIR + "/{sample}_{replicate}_neg.bam",
-		bam_bai_pos=MATEFILTER_OUTDIR + "/{sample}_{replicate}_pos.bam.bai",
-		bam_bai_neg=MATEFILTER_OUTDIR + "/{sample}_{replicate}_neg.bam.bai",
-		sorted_bam=MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam",
-		sorted_bam_bai=MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam.bai"
-	threads: 2
-	conda:
-		config["conda_envs"] + "/samtools.yml"
-	shell:
-		"if [ ! -d {MATEFILTER_OUTDIR} ]; then mkdir {MATEFILTER_OUTDIR}; fi"
-		"&& samtools view -b -f 0x0040 {input} > {output.bam}"
-		"&& samtools view -b -F 0x0010 {output.bam} > {output.bam_pos}"
-		"&& samtools view -b -f 0x0010 {output.bam} > {output.bam_neg}"
-		"&& samtools sort {output.bam} > {output.sorted_bam}"
-		"&& samtools index {output.sorted_bam}"
-		"&& samtools index {output.bam_pos}"
-		"&& samtools index {output.bam_neg}"
-
 if ( control == "yes" ):
 
-	if ( peakcaller == "PureCLIP" ):
-		rule pureclip:
+	if ( peakcaller == "PEAKachu" ):
+
+		rule peakachu:
+		    input:
+		    	clip=expand(PRE_FOR_UMI_OUTDIR + "/{sample}_got_umis_unlocalized_check.bam", sample=REPLICATES_CLIP),
+		    	control=expand(PRE_FOR_UMI_OUTDIR + "/{sample}_got_umis_unlocalized_check.bam", sample=REPLICATES_CONTROL)
+		    output:
+		    	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
+		    	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
+		    	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
+		    threads: 4
+		    conda:
+		    	config["conda_envs"] + "/peakachu.yml"
+		    shell:
+		    	#"--max_proc "${GALAXY_SLOTS:-1}"
+		    	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
+		    	"&& echo {config[peakachu]} >> {file_tool_params}"
+		    	#"&& source activate peakachu"
+		    	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} --paired_end --output_folder {PEAKCALLING_OUTDIR} {config[peakachu]}"
+		    	#"&& source deactivate "
+		    	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
+		    	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
+		    	"&& rm tmp.tsv"
+		    	"&& tail -n +2 -q {PEAKCALLING_OUTDIR}/peak_tables/*.csv >> {output.peaks_tsv} "
+		    	"&& cat {PEAKCALLING_OUTDIR}/peak_annotations/*.gff | awk '/peak/ {{ print $0 }}' > {output.peaks_gtf} "
+		    	"&& cat {PEAKCALLING_OUTDIR}/blockbuster_input/*bed > {output.blockbuster}"
+
+		rule peaks_tsv_to_bed:
 			input:
-				experiment=MATEFILTER_OUTDIR + "/{sample_exp}_{replicate_exp}_sorted.bam",
-				experiment_bai=MATEFILTER_OUTDIR + "/{sample_exp}_{replicate_exp}_sorted.bam.bai",
-				control=MATEFILTER_OUTDIR + "/{sample_ctl}_{replicate_ctl}_sorted.bam",
-				control_bai=MATEFILTER_OUTDIR + "/{sample_ctl}_{replicate_ctl}_sorted.bam.bai",
+				PEAKCALLING_OUTDIR + "/peakachu.tsv"
+			output:
+				PEAKCALLING_OUTDIR + "/peakachu.bed"
+			threads: 2
+			shell:
+				"""&&  awk -F "\t" 'BEGIN {{ OFS = FS }} NR>1 {{ if ($3 < $4) {{ print $1,$3,$4,"clip_peak_"NR-1,$9,$5; }} else {{ print $1,$4,$3,"clip_peak_"NR-1,$9,$5; }} }}' {input} > {output} """
+
+		rule peaks_extend_frontiers:
+			input:
+				bed=PEAKCALLING_OUTDIR + "/peakachu.bed",
+				genome=GENOME_SIZES
+			output:
+				PEAKCALLING_OUTDIR + "/peakachu_peaks_extended.bed"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/bedtools.yml"
+			shell:
+				"echo {config[peaks_extend_frontiers]} >> {file_tool_params}"
+				"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
+
+	if ( peakcaller == "MACS2" ):
+		rule macs2:
+			input:
+				experiment=PRE_FOR_UMI_OUTDIR + "/{sample_exp}_{replicate_exp}_got_umis_unlocalized_check.bam",
+				control=PRE_FOR_UMI_OUTDIR + "/{sample_ctl}_{replicate_ctl}_got_umis_unlocalized_check.bam",
 				genome_fasta=GENOME_FASTA
 			output:
-				crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_crosslinkind_sites.bed",
-				binding_regions=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions.bed",
+				# If you want to find the motifs at the binding sites, this file is recommended (from https://github.com/taoliu/MACS)
+				summits=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_summits.bed",
+				# NAME_peaks.narrowPeak is BED6+4 format file which contains the peak locations together with peak summit, pvalue and qvalue. 
+				peaks=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions.bed"
 			threads: 10
 			params:
-				tmp=PEAKCALLING_OUTDIR + "/tmp/",
-				parameters=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_parameters.txt"
+				output_folder=PEAKCALLING_OUTDIR,
+				name="{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}",
+				peaks_tmp=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks.narrowPeak"
 			conda:
-				config["conda_envs"] + "/pureclip.yml"
+				config["conda_envs"] + "/macs2.yml"
 			shell:
 				"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi "
-				"&& echo {config[pureclip]} >> {file_tool_params}"
-				"&& pureclip -i {input.experiment} -bai {input.experiment_bai} -g {input.genome_fasta} -o {output.crosslinking_sites} -tmp {params.tmp} "
-				"-ibam {input.control} -ibai {input.control_bai} -or {output.binding_regions} -p {params.parameters} -nt {threads} {config[pureclip]} "
+				"&& echo {config[macs2]} >> {file_tool_params}"
+				"&& macs2 callpeak -t {input.experiment} -c {input.control} -n {params.name} -f BAMPE --outdir {params.output_folder} {config[macs2]}"
+				"&& mv {params.peaks_tmp} {output.peaks}"
 
 		rule peaks_extend_frontiers:
 			input:
@@ -69,28 +91,28 @@ if ( control == "yes" ):
 				"echo {config[peaks_extend_frontiers]} >> {file_tool_params}"
 				"&& bedtools slop {config[peaks_extend_frontiers]} -i {input.bed} -g {input.genome} > {output}"
 
-	rule find_robust_peaks:
-		input:
-			expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed", 
-				sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
-		output:
-			ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
-		threads: 2
-		conda:
-			config["conda_envs"] + "/bedtools.yml"
-		params:
-			input_folder=PEAKCALLING_OUTDIR,
-			output_folder=ROBUSTPEAKS_OUTDIR
-		shell:
-			"if [ ! -d {ROBUSTPEAKS_OUTDIR} ]; then mkdir {ROBUSTPEAKS_OUTDIR}; fi"
-			"&& {config[find_robust_intersections]}/robust_intersections.sh {params.input_folder} {params.output_folder} bed"
+		rule find_robust_peaks:
+			input:
+				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed", 
+					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
+			output:
+				ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/bedtools.yml"
+			params:
+				input_folder=PEAKCALLING_OUTDIR,
+				output_folder=ROBUSTPEAKS_OUTDIR
+			shell:
+				"if [ ! -d {ROBUSTPEAKS_OUTDIR} ]; then mkdir {ROBUSTPEAKS_OUTDIR}; fi"
+				"&& {config[find_robust_intersections]}/robust_intersections.sh {params.input_folder} {params.output_folder} bed"
 
 else:
 
 	if ( peakcaller == "Piranha" ):
 		rule piranha:
 			input:
-				MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam"
+				PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam"
 			output:
 				PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks.bed"
 			conda:
@@ -117,8 +139,8 @@ else:
 	elif ( peakcaller == "PureCLIP" ):
 		rule pureclip:
 			input:
-				experiment=MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam",
-				experiment_bai=MATEFILTER_OUTDIR + "/{sample}_{replicate}_sorted.bam.bai",
+				experiment=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam",
+				experiment_bai=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check.bam.bai",
 				genome_fasta=GENOME_FASTA
 			output:
 				crosslinking_sites=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_crosslinkind_sites.bed",
@@ -162,46 +184,3 @@ else:
 		shell:
 			"if [ ! -d {ROBUSTPEAKS_OUTDIR} ]; then mkdir {ROBUSTPEAKS_OUTDIR}; fi"
 			"&& {config[find_robust_intersections]}/robust_intersections.sh {params.input_folder} {params.output_folder} bed"
-
-
-# rule peakachu:
-#     input:
-#     	clip=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
-#     	control=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL)
-#     output:
-#     	peaks_tsv=PEAKCALLING_OUTDIR + "/peakachu.tsv",
-#     	peaks_gtf=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-#     	blockbuster=PEAKCALLING_OUTDIR + "/blockbuster.bed"
-#     threads: 4
-#     conda:
-#     	config["conda_envs"] + "/peakachu.yml"
-#     shell:
-#     	#"--max_proc "${GALAXY_SLOTS:-1}"
-#     	"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
-#		"&& echo {config[peakachu]} >> {file_tool_params}"
-#     	"&& source activate peakachu"
-#     	"&& peakachu adaptive --exp_libs {input.clip} --ctr_libs {input.control} {config[peakachu]} --output_folder {PEAKCALLING_OUTDIR} "
-#     	"&& source deactivate "
-#     	"&& head -q -n 1 {PEAKCALLING_OUTDIR}/peak_tables/*.csv > tmp.tsv "
-#     	"&& head -q -n 1 tmp.tsv > {output.peaks_tsv}"
-#     	"&& rm tmp.tsv"
-#     	"&& tail -n +2 -q {PEAKCALLING_OUTDIR}/peak_tables/*.csv >> {output.peaks_tsv} "
-#     	"&& cat {PEAKCALLING_OUTDIR}/peak_annotations/*.gff | awk '/peak/ {{ print $0 }}' > {output.peaks_gtf} "
-#     	"&& cat {PEAKCALLING_OUTDIR}/blockbuster_input/*bed > {output.blockbuster}"
-
-# rule peak_calling_quality:
-# 	input:
-# 		peaks=PEAKCALLING_OUTDIR + "/peakachu.gtf",
-# 		clip=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-# 	output:
-# 		htseq_hits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_hits.txt",
-# 		htseq_nohits=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_htseq_nohits.txt",
-# 		reads_in_peaks=PEAKCALLING_OUTDIR + "/{sample}_{replicate}_reads_summary.txt"
-# 	threads: 2
-# 	conda:
-# 		config["conda_envs"] + "/htseq.yml"
-# 	shell:
-# 		"htseq-count --mode=union --stranded=yes --minaqual=10 --type='peak_region' --idattr='ID' --order=name --format=bam {input.clip} {input.peaks} "
-# 		"""| awk '{{ if ($1 ~ "no_feature|ambiguous|too_low_aQual|not_aligned|alignment_not_unique") print $0 | "cat 1>&2"; else print $0 }}' > {output.htseq_hits} 2> {output.htseq_nohits} """
-# 		"""&& awk 'FNR==NR{{ SUM1+=$2; next }} {{ SUM2+=$2 }} END {{ print "#reads in peaks: "SUM1; """
-# 		"""print "#culled reads: "SUM2; print "percentage reads in peaks: " SUM1/(SUM1+SUM2) }}' {output.htseq_hits} {output.htseq_nohits} > {output.reads_in_peaks}"""
