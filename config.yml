@@ -4,34 +4,41 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Marc/YY1_CLIP"
+sample_data_dir: "/scratch/bi03/heylf/Marc/YY1_ChIP"
 
 clip_samples:
-  #ELAVL1_rep1: {r1: "SRR653239", r2: "-"}
-  # ELAVL1_rep2: {r1: "SRR189778", r2: "-"}
-  # ELAVL1_rep3: {r1: "SRR189779", r2: "-"}
-  # ELAVL1_rep4: {r1: "SRR189780", r2: "-"}
-  # ELAVL1_rep5: {r1: "SRR189781", r2: "-"}
-  YY1_rep1: {r1: "SRR1991264", r2: "-"}
+  # PARCLIP
+  #YY1_rep1: {r1: "SRR1991264", r2: "-"}
+  # FLASH
   #YY1_rep1: {r1: "UV_YY1_R1", r2: "UV_YY1_R2"}
-
+  # ChIP
+  YY1_rep1: {r1: "YY1_ChIP_rep1_R1", r2: "YY1_ChIP_rep1_R2"}
+  YY1_rep2: {r1: "YY1_ChIP_rep2_R1", r2: "YY1_ChIP_rep2_R2"}
 
 control_samples:
-  #Control_rep1:  {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"}
-  Input_rep1: {r1: "SRR1991265", r2: "-"}
+  # PARCLIP
+  #Input_rep1: {r1: "SRR1991265", r2: "-"}
+  # FLASH
   #IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
+  # ChIP
+  Input_rep1: {r1: "Input_WT_R1", r2: "Input_WT_R1"}
 
 multiplex_setup: {r1: "SRR1991265", r2: "-"}
 
-protocol: "PARCLIP"
-paired: "no"
+protocol: "ChIP"
+paired: "yes"
 control: "yes"
 demultiplexed: "yes"
 
 # Peakcaller
-peakcaller: "PureCLIP"
+# peakcaller: "PureCLIP"
 # peakcaller: "Piranha"
 # peakcaller: "PEAKachu"
+peakcaller: "MACS2"
+
+# Mapper
+# mapper: "STAR"    # recommended for CLIP-Seq
+mapper: "Bowtie2"   # recommended for ChIP-Seq
 
 # give path to a file which provides
 # barcodes for demultiplexing in a tabular form like:
@@ -106,7 +113,7 @@ conda_envs: "../../envs"
 rules: "rules"
 
 ################
-# Tool options #
+# TOOL OPTIONS #
 ################
 
 ### CUTADAPT ###
@@ -122,7 +129,7 @@ cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCG
 
 ### REMOVE_TAIL ###
 # arbitrary
-remove_tail: &remove_tail "1"
+remove_tail: &remove_tail "0"
 # FLASH
 # remove_tail: &remove_tail "13"
 
@@ -138,6 +145,10 @@ demultiplex: &demultiplex >-
               SAME_HEADERS=false BPOS=READ_2 BCLEN=6 C=true ADD=false MM=1 MMD=1 Q=10 QUALITY_FORMAT=Standard XT=0 ZT=0 RCHAR=: GZ=false 
               KEEP_UNASSIGNED_READ=false STATS_ONLY=false
 
+################
+### Mapping  ###
+################
+
 ### STAR ###
 star_all: &star_all >-
     --outSAMtype BAM SortedByCoordinate --outSAMattributes All --outSAMstrandField intronMotif --outFilterIntronMotifs None --outSAMunmapped None 
@@ -145,13 +156,26 @@ star_all: &star_all >-
     --outFilterMismatchNmax '10' --outFilterMismatchNoverLmax '0.3' --outFilterMismatchNoverReadLmax '1.0' --outFilterScoreMin '0'
     --outFilterMatchNmin '0' --seedSearchStartLmax '50' --seedSearchStartLmaxOverLread '1.0' --seedSearchLmax '0' 
     --seedMultimapNmax '10000' --seedPerReadNmax '1000' --seedPerWindowNmax '50' --seedNoneLociPerWindow '10'  --alignIntronMin '21' --alignIntronMax '0' 
-    --alignMatesGapMax '0' --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66'  
+    --alignSJoverhangMin '5' --alignSJDBoverhangMin '3' --alignSplicedMateMapLmin '0' --alignSplicedMateMapLminOverLmate '0.66'  
     --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
     --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' 
 # long reads 
 # star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
 # small reads 
 star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
+# fragment size does not matter
+# star_frag: &star_frag "--alignMatesGapMax '0'"
+# fragment size does matter (for MACS2)
+star_frag: &star_frag "--alignMatesGapMax '999'"
+
+### Bowtie2 ###
+# -X --> maximum fragment length (important for MACS2)
+# --fr --> forward reverse orientation
+bowtie2: &bowtie2 "--end-to-end -X 999 --fr --seed 123"
+
+#######################
+### Mapping Quality ###
+#######################
 
 gc_bias: &gc_bias "--fragmentLength 300 --effectiveGenomeSize 2451960000"
 fingerprint: &fingerprint "--binSize 100"
@@ -162,6 +186,10 @@ plotCorrelation: &plotCorrelation >-
 estimate_insert_size: &estimate_insert_size >-
                       DEVIATIONS='10.0' MINIMUM_PCT='0.05' ASSUME_SORTED='false' 
                       METRIC_ACCUMULATION_LEVEL='ALL_READS'  VALIDATION_STRINGENCY='LENIENT' QUIET=true VERBOSITY=ERROR
+
+####################
+### Peak calling ###
+####################
 
 ### PURECLIP ###
 # hg19
@@ -178,10 +206,30 @@ pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
 # hg19
 piranha: &piranha "-s -p 0.05 -b 50 -i 50 -u 10"
 
+### PEAKACHU ###
 # see my note to --pairwise_replicates 
 peakachu: &peakachu >-
           --max_insert_size 200 --features '' --sub_features '' --min_cluster_expr_frac 0.01 --min_block_overlap 0.5 --min_max_block_expr 0.1 
           --norm_method deseq --mad_multiplier 0.0 --fc_cutoff 2.0 --padj_threshold 0.05 --pairwise_replicates 
+
+### MACS2 ###
+# hg18/19 etc. --> -g hs
+# mm10 etc. --> mm
+# Q-values are calculated from p-values using Benjamini-Hochberg procedure.
+# regular peaks (from https://github.com/taoliu/MACS)
+macs2: &macs2 "-g mm -B -q 0.05"
+# braod peaks (from https://github.com/taoliu/MACS)
+# macs2: &macs2 "--broad -g mm --broad-cutoff 0.05"
+
+# If AssertionError: slocal can't be smaller than d! ---> (https://github.com/taoliu/MACS/issues/171)
+# You used the default slocal value 1000bp. Your mean fragment length (d)
+# is 1109bp. That's why it complains "slocal can't be smaller than d!". I
+# think you can get through by setting --slocal to a value larger than
+# 1109, eg. 2000.
+
+##########################
+### After peak calling ###
+##########################
 
 ### Extract CL ###
 # eCLIP
@@ -194,5 +242,5 @@ meme_chip: &meme_chip >-
             -norc -order 1 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
             -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna -seed 123
 fimo: &fimo "--alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1"
-annotation: &annotation "-s -u -wa"
+annotation: &annotation "-s -u"
 rnafold: &rnafold "-p --MEA -d2 --noPS"
