@@ -1,0 +1,8 @@
+name: macs2
+channels:
+  - bioconda
+dependencies:
+  - r-base=3.4.1
+  - macs2=2.1.2
+  - numpy>=1.6
+  - python>=2.7,<2.8.0a0

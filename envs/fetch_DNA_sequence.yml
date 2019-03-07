@@ -1,0 +1,7 @@
+name: fetch_DNA_sequence
+channels:
+  - bioconda
+dependencies:
+  - python>=3.6*
+  - pandas>=0.24.1
+  - pysam>=0.15.2
