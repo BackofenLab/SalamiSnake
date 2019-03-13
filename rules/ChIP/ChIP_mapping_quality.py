@@ -86,141 +86,77 @@ rule fastqc_after_dedup:
 ## END QUALITY ##
 #################
 
+mapping_suffix = ""
 if ( mapper == "STAR" ):
-	if ( control == "yes" ):
-		if ( demultiplexed == "yes" ):
-			rule multiqc:
-			    input:
-			    	begin=[expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    		   expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
-			    	trim=[expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    		  expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
-			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-			    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
-		else:
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-			    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
-	else:
-		if ( demultiplexed == "yes" ):
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
-		else:
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
+	mapping_suffix = "_Log.final.out"
 if ( mapper == "Bowtie2" ):
-	if ( control == "yes" ):
-		if ( demultiplexed == "yes" ):
-			rule multiqc:
-			    input:
-			    	begin=[expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    		   expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
-			    	trim=[expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    		  expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
-			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-			    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
-		else:
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-			    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
+	mapping_suffix = "_log.txt"
+
+if ( control == "yes" ):
+	if ( demultiplexed == "yes" ):
+		rule multiqc:
+		    input:
+		    	begin=[expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		    		   expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
+		    	trim=[expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		    		  expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
+		    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
+		    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
+		    output:
+		    	MULTIQC_OUTDIR + "/multiqc_report.html"
+		    threads: 2
+		    conda:
+		    	config["conda_envs"] + "/multiqc.yml"
+		    shell:
+		    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+		    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
 	else:
-		if ( demultiplexed == "yes" ):
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
-			    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
-		else:
-			rule multiqc:
-			    input:
-			    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
-			    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}_log.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
-			    output:
-			    	MULTIQC_OUTDIR + "/multiqc_report.html"
-			    threads: 2
-			    conda:
-			    	config["conda_envs"] + "/multiqc.yml"
-			    shell:
-			    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
-			    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
+		rule multiqc:
+		    input:
+		    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
+		    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
+		    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
+		    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
+		    output:
+		    	MULTIQC_OUTDIR + "/multiqc_report.html"
+		    threads: 2
+		    conda:
+		    	config["conda_envs"] + "/multiqc.yml"
+		    shell:
+		    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+		    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
+else:
+	if ( demultiplexed == "yes" ):
+		rule multiqc:
+		    input:
+		    	begin=expand(FASTQC_BEG_OUTDIR + "/{sample}_{replicate}_{pair}.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP, pair=PAIR),
+		    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[0], replicate=REP_NAME_CLIP)
+		    output:
+		    	MULTIQC_OUTDIR + "/multiqc_report.html"
+		    threads: 2
+		    conda:
+		    	config["conda_envs"] + "/multiqc.yml"
+		    shell:
+		    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+		    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
+	else:
+		rule multiqc:
+		    input:
+		    	begin=expand(FASTQC_BEG_OUTDIR + "/{s}_{r}_{pair}.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
+		    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
+		    	dedup=expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    	mapping=expand(MAPPING_OUTDIR + "/{sample}_{replicate}" + mapping_suffix, sample=SAMPLES[0], replicate=REP_NAME_CLIP)
+		    output:
+		    	MULTIQC_OUTDIR + "/multiqc_report.html"
+		    threads: 2
+		    conda:
+		    	config["conda_envs"] + "/multiqc.yml"
+		    shell:
+		    	"if [ ! -d {MULTIQC_OUTDIR} ]; then mkdir {MULTIQC_OUTDIR}; fi"
+		    	"&& multiqc -s {FASTQC_BEG_OUTDIR} {FASTQC_ADAPT_OUTDIR} {FASTQC_DEDUP_OUTDIR} {input.mapping} --outdir {MULTIQC_OUTDIR}"
