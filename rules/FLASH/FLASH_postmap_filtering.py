@@ -7,6 +7,7 @@ import os
 ########################
 
 # -F 0x100 do not include secondary alignments 
+# 0!~/XS:i/{{ print }} for bowtie flag of nonunqiue mapped reads
 rule unique_reads_fitlering:
 	input:
 		MAPPING_OUTDIR + "/{sample}_{replicate}.bam"
