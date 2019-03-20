@@ -17,10 +17,16 @@ rule star_generate_index_for_genome:
 		"&& STAR --outTmpDir {config[sample_data_dir]}/STAR_tmp_Index --runThreadN {threads} --runMode genomeGenerate --genomeDir {REF_GENOME_DIR} "
 		"--genomeFastaFiles {input.fasta} --sjdbGTFfile {input.annotation}"
 
+MAPPING_INDIR = ""
+if ( demultiplexed == "yes" ): 
+	MAPPING_INDIR = REMOVE_TAIL_OUTDIR
+else:
+	MAPPING_INDIR = DEMULTI_OUTDIR
+
 rule star:
 	input:
 		REF_GENOME_DIR + "/sjdbList.fromGTF.out.tab",
-		first_read=REMOVE_TAIL_OUTDIR + "/{sample}_{replicate}_r1_trimmed.fastqsanger"
+		first_read=MAPPING_INDIR + "/{sample}_{replicate}_r1_trimmed.fastqsanger"
 	output:
 		log=MAPPING_OUTDIR + "/{sample}_{replicate}.txt",
 		bam=MAPPING_OUTDIR + "/{sample}_{replicate}.bam",
@@ -35,6 +41,7 @@ rule star:
 		"&& TIME=$(date +%N) "
 		"&& echo {config[star_all]} >> {file_tool_params}"
 		"&& echo {config[star_indi]} >> {file_tool_params}"
+		"&& echo {config[star_frag]} >> {file_tool_params}"
 		"&& if [ -d {config[sample_data_dir]}/STAR_tmp_$TIME ]; then rm -r {config[sample_data_dir]}/STAR_tmp_$TIME; fi "
 		"&& STAR --runThreadN {threads} --genomeLoad NoSharedMemory --genomeDir {REF_GENOME_DIR} "   
 		"--readFilesIn {input.first_read} --outTmpDir {config[sample_data_dir]}/STAR_tmp_$TIME  --outFileNamePrefix {params.output_folder}_ "  
