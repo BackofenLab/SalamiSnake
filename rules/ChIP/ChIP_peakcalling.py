@@ -58,8 +58,7 @@ if ( control == "yes" ):
 		rule macs2:
 			input:
 				experiment=PRE_FOR_UMI_OUTDIR + "/{sample_exp}_{replicate_exp}_got_umis_unlocalized_check.bam",
-				control=PRE_FOR_UMI_OUTDIR + "/{sample_ctl}_{replicate_ctl}_got_umis_unlocalized_check.bam",
-				genome_fasta=GENOME_FASTA
+				control=PRE_FOR_UMI_OUTDIR + "/{sample_ctl}_{replicate_ctl}_got_umis_unlocalized_check.bam"
 			output:
 				# If you want to find the motifs at the binding sites, this file is recommended (from https://github.com/taoliu/MACS)
 				summits=PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_summits.bed",
