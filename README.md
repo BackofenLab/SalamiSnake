@@ -1,4 +1,4 @@
-# SalamiSnake_CLIP
+# SalamiSnake
 
 ## Background
 Snakemake pipeline for FLASH, eCLIP, ChIP-Seq and PARCLIP data. Changes needs to be done in order to adapt to your data.
