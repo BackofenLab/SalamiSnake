@@ -222,6 +222,15 @@ elif ( PROTOCOL == "ChIP" ):
 	include: config["rules"] + "/ChIP/ChIP_postmap_filtering.py"
 	include: config["rules"] + "/ChIP/ChIP_mapping_quality.py"
 	include: config["rules"] + "/ChIP/ChIP_peakcalling.py"
+elif ( PROTOCOL == "eCLIP" ):
+	# Preprocessing (without demultiplexing)
+	include: config["rules"] + "/eCLIP/eCLIP_preprocess.py"
+	include: config["rules"] + "/Main/mapping.py"
+	include: config["rules"] + "/eCLIP/eCLIP_postmap_filtering.py"
+	include: config["rules"] + "/eCLIP/eCLIP_deduplication.py"
+	include: config["rules"] + "/eCLIP/eCLIP_mapping_quality.py"
+	include: config["rules"] + "/eCLIP/eCLIP_peakcalling.py"
+	include: config["rules"] + "/Main/motif_detection.py"
 else:
 	sys.exit("[ERROR] Protocol not provided yet.")
 
@@ -239,15 +248,19 @@ if ( control == "yes" ):
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
+				expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_orientation.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+				expand(MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_orientation.txt", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 				MULTIQC_OUTDIR + "/multiqc_report.html",
-				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
-				  		sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)#,
+				PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed",
+				# expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
+				#   		sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)#,
 				#ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed"
 				# PEAKCALLING_OUTDIR + "/peakachu_peaks_extended.bed"
 				#expand(ANNOTATION_PEAKS_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_binding_regions_intersecting_peaks.gtf",
 				#		sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL),
 				#expand(MOTIF_DETECTION_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_meme_chip/meme-chip.html", 
 				#		sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
+				MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined_meme_chip/meme-chip.html"
 
 		ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger") + name_generation_samples(RENAMING, SAMPLES[1], REP_NAME_CONTROL, PAIR, ".fastqsanger")
 	
