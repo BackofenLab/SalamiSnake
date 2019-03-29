@@ -1,5 +1,39 @@
 
+
 if ( control == "yes" ):
+
+	if ( peakcaller == "PanPeaker" ):
+
+
+		#####################
+		## MOTIF DETECTION ##
+		#####################
+
+		rule extract_genomic_DNA_dreme:
+			input:
+				PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed"
+			output:
+				fa=MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined.fa"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/extract_genomic_dna.yml"			
+			shell:
+				"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
+				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {input} {GENOME_FASTA}"
+
+		rule meme_chip:
+			input: 
+				MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined.fa"
+			output:
+				MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined_meme_chip/meme-chip.html"
+			threads: 4
+			conda:
+				config["conda_envs"] + "/meme_suite.yml"
+			params:
+				outdir=MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined_meme_chip"
+			shell:
+				"echo {config[meme_chip]} >> {file_tool_params}"
+				"&& meme-chip -meme-p {threads} {config[meme_chip]} -oc {params.outdir} {input}"
 
 	if ( peakcaller == "PureCLIP" ):
 
