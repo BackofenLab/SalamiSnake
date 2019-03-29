@@ -34,16 +34,3 @@ rule deduplication:
 		"&& umi_tools dedup {config[umi_dedup]} -I {input} -S {output.bam} -L {output.log}"
 		"&& samtools sort {output.bam} > {output.sorted_bam}"
 		"&& samtools index {output.sorted_bam}"
-
-rule sam_name_sort:
-	input:
-		sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
-	output:
-		name_sorted_bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_name_sorted.bam"
-	threads: 2
-	conda:
-		config["conda_envs"] + "/samtools.yml"
-	params:
-		tmp=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}"
-	shell:
-		"samtools sort -n -T {params.tmp} -o {output.name_sorted_bam} {input.sorted_bam}" 

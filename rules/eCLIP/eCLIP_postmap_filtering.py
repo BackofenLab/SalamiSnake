@@ -29,7 +29,7 @@ rule got_umis:
 		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_got_umis.bam"
 	threads: 2
 	conda:
-		"envs/samtools.yml"
+		config["conda_envs"] + "/samtools.yml"
 	shell:
 		"if [ ! -d {PRE_FOR_UMI_OUTDIR} ]; then mkdir {PRE_FOR_UMI_OUTDIR}; fi"
 		"&& samtools view -h {input} "

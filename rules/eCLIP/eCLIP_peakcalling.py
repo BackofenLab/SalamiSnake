@@ -36,14 +36,15 @@ if ( control == "yes" ):
 	if ( peakcaller == "PanPeaker" ):
 		rule panpeaker:
 			input:
-		    	clip_bam=expand(MATEFILTER_OUTDIR + "/{sample}.bam", sample=REPLICATES_CLIP),
-		    	clip_bai=expand(MATEFILTER_OUTDIR + "/{sample}.bai", sample=REPLICATES_CLIP),
-		    	ctl_bam=expand(MATEFILTER_OUTDIR + "/{sample}.bam", sample=REPLICATES_CONTROL),
-		    	ctl_bai=expand(MATEFILTER_OUTDIR + "/{sample}.bai", sample=REPLICATES_CONTROL),
-		    	clip_bam_peakachu=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
-		    	ctl_bam_peakachu=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL),
-		    	genome_fasta=GENOME_FASTA,
-		    	chr_sizes=GENOME_SIZES
+				clip_bam=expand(MATEFILTER_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
+				clip_bai=expand(MATEFILTER_OUTDIR + "/{sample}_sorted.bam.bai", sample=REPLICATES_CLIP),
+				ctl_bam=expand(MATEFILTER_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL),
+				ctl_bai=expand(MATEFILTER_OUTDIR + "/{sample}_sorted.bam.bai", sample=REPLICATES_CONTROL),
+				clip_bam_peakachu=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CLIP),
+				ctl_bam_peakachu=expand(DEDUPLICAITON_OUTDIR + "/{sample}_sorted.bam", sample=REPLICATES_CONTROL),
+				genome_fasta=GENOME_FASTA,
+				chr_sizes=GENOME_SIZES,
+				parameter_sets="/scratch/bi03/heylf/PanPeaker/PTBP1/parameter_sets.txt"
 			output:
 				PEAKCALLING_OUTDIR + "/robust_peaks.bed"
 			threads: 10 
@@ -51,23 +52,27 @@ if ( control == "yes" ):
 				"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
 				"&& echo {config[panpeaker]} >> {file_tool_params}"
 				"&& source activate panpeaker"
-				"&& python3 {config[panpeaker_script]}/Panpeaker.py {config[panpeaker]} -nt {threads} "
+				"&& python3 {config[panpeaker_script]}/PanPeaker.py {config[panpeaker]} -nt {threads} "
 				"-i {input.clip_bam} -b {input.clip_bai} -c {input.ctl_bam} -k {input.ctl_bai} -o {PEAKCALLING_OUTDIR} -g {input.genome_fasta} "
-				"--chr_sizes {input.chr_sizes} --signal_bam_peakachu {input.clip_bam} --control_bam_peakachu {input.ctl_bam}"
+				"--chr_sizes {input.chr_sizes} --signal_bam_peakachu {input.clip_bam_peakachu} --control_bam_peakachu {input.ctl_bam_peakachu} "
+				"--para_sets {input.parameter_sets}"
+				"&& echo --para_sets {input.parameter_sets} >> {file_tool_params}"
 				"&& source deactivate"
 
 		rule panpeaker_refine_output:
 			input:
-		    	PEAKCALLING_OUTDIR + "/robust_peaks.bed"
+				PEAKCALLING_OUTDIR + "/robust_peaks.bed"
 			output:
 				PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed"
 			conda:
 				config["conda_envs"] + "/bedtools.yml"
 			params:
-				bedsort=PEAKCALLING_OUTDIR + "/robust_peaks_sorted.bed"
+				bedsort=PEAKCALLING_OUTDIR + "/robust_peaks_sorted.bed",
+				sign=PEAKCALLING_OUTDIR + "/robust_peaks_sorted_significant.bed"
 			shell:
 				"bedtools sort -i {input} > {params.bedsort}"
-				"&& bedtools merge -i {params.bedsort} -s > {output}"
+				"""&& awk '$9<0.05 {{print $0}}' {params.bedsort} > {params.sign}"""
+				"&& bedtools merge -i {params.sign} -s > {output}"
 
 	if ( peakcaller == "PureCLIP" ):
 		rule pureclip:

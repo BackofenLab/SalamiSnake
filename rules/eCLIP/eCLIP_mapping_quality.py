@@ -6,6 +6,29 @@ import os
 ## MAPPING QUALITY ##
 #####################
 
+rule genome_bed_conversion:
+	input:
+		GENOME_GTF
+	output:
+		MAPPING_QUALITY_OUTDIR + "/reference_genome.bed"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"""&& awk -v FS="\t" -v OFS="\t" '$0 !~/^#/ {{print $1,$4,$5,$3,".",$7}}' {input} > {output}"""
+
+rule orientation:
+	input:
+		bam=DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam",
+		genome_bed=MAPPING_QUALITY_OUTDIR + "/reference_genome.bed"
+	output:
+		MAPPING_QUALITY_OUTDIR + "/{sample}_{replicate}_orientation.txt"
+	threads: 2
+	conda:
+		config["conda_envs"] + "/orientation.yml"
+	shell:
+		"if [ ! -d {MAPPING_QUALITY_OUTDIR} ]; then mkdir {MAPPING_QUALITY_OUTDIR}; fi"
+		"&& echo {config[orientation]} >> {file_tool_params}"
+		"&& python2 {config[infer_experiment]}/infer_experiment.py -i {input.bam} -r {input.genome_bed} --sample-size 200000 --mapq 30 > {output}"
+
 rule compute_gc_bias_plots:
 	input:
 		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
@@ -72,9 +95,9 @@ rule correlating_bam_files_plot:
 
 rule fastqc_after_dedup:
     input:
-    	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
+    	DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}_sorted.bam"
     output:
-    	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html"
+    	FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_sorted_fastqc.html"
     threads: 2
     conda:
     	config["conda_envs"] + "/fastqc.yml"
@@ -96,8 +119,8 @@ if ( control == "yes" ):
 		    		  expand(FASTQC_ADAPT_OUTDIR + "/{sample}_{replicate}_{pair}_trimmed.fastqsanger_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL, pair=PAIR)],
 		    	be_dedup=[expand(FASTQC_BEFORE_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		    		      expand(FASTQC_BEFORE_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-		    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-		    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
+		    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_sorted_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+		    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_sorted_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
 		    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 		    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
 		    output:
