@@ -91,6 +91,13 @@ pureclip:
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
+panpeaker:
+        jobname: "PanPeaker"
+        cores: "smp 10"
+        mem: "h_vmem=4G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
 macs2:
         jobname: "MACS2"
         cores: "smp 10"
