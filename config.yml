@@ -4,34 +4,18 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Marc/YY1_ChIP"
+sample_data_dir: "/scratch/bi03/heylf/PanPeaker/PTBP1"
 
 clip_samples:
-  # PARCLIP
-  # YY1_rep1: {r1: "SRR1991264", r2: "-"}
-  # FLASH
-  # YY1_rep1: {r1: "UV_YY1_R1", r2: "UV_YY1_R2"}
-  # ChIP YY1
-  YY1_rep1: {r1: "YY1_ChIP_rep1_R1", r2: "YY1_ChIP_rep1_R2"}
-  YY1_rep2: {r1: "YY1_ChIP_rep2_R1", r2: "YY1_ChIP_rep2_R2"}
-  # ChIP H3K4me2
-  # H3K4me2_rep1: {r1: "SRR6313877_1", r2: "SRR6313877_2"}
-  # ChIP H3K27ac
-  # H3K27ac_rep1: {r1: "SRR6313885_1", r2: "SRR6313885_2"}
+  PTBP1_rep1: {r1: "ENCFF019TEQ", r2: "ENCFF689XJE"}
+  PTBP1_rep2: {r1: "ENCFF989UNR", r2: "ENCFF273VIJ"}
 
 control_samples:
-  # PARCLIP
-  # Input_rep1: {r1: "SRR1991265", r2: "-"}
-  # FLASH
-  # IgG_rep1: {r1: "UV_IgG_R1", r2: "UV_IgG_R2"}
-  # ChIP YY1
-  Input_rep1: {r1: "Input_WT_R1", r2: "Input_WT_R1"}
-  # ChIP H3K4me2 and H3K27ac
-  # Input_rep1: {r1: "SRR6313873_1", r2: "SRR6313873_2"}
+  Input_rep1: {r1: "ENCFF905RDN", r2: "ENCFF960RXN"}
 
-multiplex_setup: {r1: "SRR1991265", r2: "-"}
+multiplex_setup: {r1: "-", r2: "-"}
 
-protocol: "ChIP"
+protocol: "eCLIP"
 paired: "yes"
 control: "yes"
 demultiplexed: "yes"
@@ -40,11 +24,12 @@ demultiplexed: "yes"
 # peakcaller: "PureCLIP"
 # peakcaller: "Piranha"
 # peakcaller: "PEAKachu"
-peakcaller: "MACS2"
+# peakcaller: "MACS2"
+peakcaller: "PanPeaker"
 
 # Mapper
-# mapper: "STAR"    # recommended for CLIP-Seq
-mapper: "Bowtie2"   # recommended for ChIP-Seq
+mapper: "STAR"    # recommended for CLIP-Seq
+# mapper: "Bowtie2"   # recommended for ChIP-Seq
 
 # give path to a file which provides
 # barcodes for demultiplexing in a tabular form like:
@@ -62,11 +47,12 @@ barcodes: ""
 # genome_sizes: "/hg19_chr_sizes.txt"   # UCSC
 # annotation_gtf: "/Genocode_hg19.gtf"
 # hg38 
-# ref_genome_dir: "/scratch/bi03/heylf/genomes/hg38"
-# genome_fasta: "/hg38.fa"  # UCSC
-# genome_2bit: "/hg38.2bit" # UCSC
-# genome_gtf: "/Gencode.v29.all.gtf"    # Gencode
-# genome_sizes: "/hg38.chrom.sizes.txt" # UCSC
+ref_genome_dir: "/scratch/bi03/heylf/genomes/hg38"
+genome_fasta: "/hg38.fa"  # UCSC
+genome_2bit: "/hg38.2bit" # UCSC
+genome_gtf: "/Gencode.v29.all.gtf"    # Gencode
+genome_sizes: "/hg38.chrom.sizes.txt" # UCSC
+annotation_gtf: "/Gencode.v29.all.gtf"
 # dm6 
 # ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
 # genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
@@ -75,12 +61,12 @@ barcodes: ""
 # genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
 # annotation_gtf: "/UCSC_dm6.gtf"
 # mm10
-ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
-genome_fasta: "/mm10.fa"   # UCSC
-genome_2bit: "/mm10.2bit"  # UCSC
-genome_gtf: "/Gencode_MM_GRCm38.92.changedchrname.gtf" # Gencode
-genome_sizes: "/mm10_chr_sizes.txt" # UCSC
-annotation_gtf: "/Gencode_MM_GRCm38.92.changedchrname.gtf"
+# ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
+# genome_fasta: "/mm10.fa"   # UCSC
+# genome_2bit: "/mm10.2bit"  # UCSC
+# genome_gtf: "/Gencode_MM_GRCm38.92.changedchrname.gtf" # Gencode
+# genome_sizes: "/mm10_chr_sizes.txt" # UCSC
+# annotation_gtf: "/Gencode_MM_GRCm38.92.changedchrname.gtf"
 
 ###############
 # Directories #
@@ -117,6 +103,8 @@ bctools: "scripts"
 rcas: "scripts"
 extract_genomic_dna: "scripts"
 find_robust_intersections: "scripts"
+infer_experiment: "scripts"
+panpeaker_script: "/scratch/bi03/heylf/PanPeaker"
 dreme: "/scratch/bi01/heylf/miniconda3/bin"
 
 # conda environment directory 
@@ -131,7 +119,7 @@ rules: "rules"
 ### CUTADAPT ###
 # PARCLIP
 # cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TCGTATGCCGTCTTCTGCTTG"
-cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCGGGTGCCAAGG"
+# cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCGGGTGCCAAGG"
 
 # FLASH
 # cutadapt: &cutadapt >-
@@ -140,24 +128,24 @@ cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCG
 #               -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
 
 # eCLIP
-# cutadapt: &cutadapt >-
-#               --error-rate=0.1 --times=1 --overlap=5 -m 20 
-#               -a NNNNNAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT -A AACTTGTAGATCGGA 
-#               -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG 
-#               -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG 
-#               -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG 
-#               -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG 
-#               -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT
+cutadapt: &cutadapt >-
+              --error-rate=0.1 --times=1 --overlap=5 -m 20 
+              -a NNNNNAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT -A AACTTGTAGATCGGA 
+              -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG 
+              -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG 
+              -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG 
+              -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG 
+              -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT
 
 ### REMOVE_TAIL ###
 # arbitrary
-remove_tail: &remove_tail "0"
+# remove_tail: &remove_tail "0"
 # FLASH
 # remove_tail: &remove_tail "13"
 # eCLIP N5
 # remove_tail: &remove_tail "5"
 # eCLIP N10
-# remove_tail: &remove_tail "10"
+remove_tail: &remove_tail "10"
 
 ### UMI_TOOLS ###
 # FLASH
@@ -186,9 +174,9 @@ star_all: &star_all >-
     --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
     --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' 
 # long reads 
-# star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
+star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
 # small reads 
-star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
+# star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
 # fragment size does not matter
 star_frag: &star_frag "--alignMatesGapMax '0'"
 # fragment size does matter (for MACS2)
@@ -254,7 +242,8 @@ macs2: &macs2 "-g mm -B -p 0.05 --call-summits --slocal 1000 --llocal 10000" # d
 # 1109, eg. 2000.
 
 ### PANPEAKER ###
-panpeaker: &panpeaker "--piranha \"-s -p 0.05 -b 50 -i 50 -u 10\" --pureclip \"-iv 'chr1;'\" --seed 123"
+panpeaker: &panpeaker >-
+            --piranha "\"-s -p 0.05 -b 50 -i 50 -u 10\"" --pureclip "\"-iv 'chr1;chr2;chr3;'\"" --seed 123
 
 ##########################
 ### After peak calling ###
@@ -269,7 +258,8 @@ extract_cl: &extract_cl ""
 peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
 meme_chip: &meme_chip >-
             -norc -order 1 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
-            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -dna -seed 123
+            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -rna -seed 123
 fimo: &fimo "--alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1"
 annotation: &annotation "-s -u"
 rnafold: &rnafold "-p --MEA -d2 --noPS"
+orientation: &orientation "--sample-size 200000 --mapq 30"
