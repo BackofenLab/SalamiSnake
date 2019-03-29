@@ -1,0 +1,8 @@
+name: extract_genomic_dna
+channels:
+  - bioconda
+dependencies:
+  - argparse
+  - pandas
+  - pysam>=0.14.0
+  - python=3.6*

@@ -1,0 +1,12 @@
+name: orientation
+channels:
+  - bioconda
+dependencies:
+  - bx-python
+  - cython >=0.17
+  - libgcc-ng >=7.3.0
+  - libstdcxx-ng >=7.3.0
+  - numpy
+  - pysam
+  - python=2.7.3
+  - r-base
