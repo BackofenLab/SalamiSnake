@@ -6,6 +6,10 @@ import os
 ## PEAKCALLING ##
 #################
 
+# We filter for eCLIP also on 0x0040 because I switched the reads in the mapping,
+# since R2=forward and R1=reverse so R2=first mate and R1=second mate. Therfore
+# like iCLIP I just have to filter on the first mate R2 where the crosslinking site is.
+
 # BE CAREFUL when using other protocols then you might need to define a different bitflag!!
 rule mate_reads_fitlering:
 	input:
@@ -23,7 +27,7 @@ rule mate_reads_fitlering:
 		config["conda_envs"] + "/samtools.yml"
 	shell:
 		"if [ ! -d {MATEFILTER_OUTDIR} ]; then mkdir {MATEFILTER_OUTDIR}; fi"
-		"&& samtools view -b -f 0x0080 {input} > {output.bam}"
+		"&& samtools view -b -f 0x0040 {input} > {output.bam}"
 		"&& samtools view -b -F 0x0010 {output.bam} > {output.bam_pos}"
 		"&& samtools view -b -f 0x0010 {output.bam} > {output.bam_neg}"
 		"&& samtools sort {output.bam} > {output.sorted_bam}"
@@ -59,6 +63,10 @@ if ( control == "yes" ):
 				"&& echo --para_sets {input.parameter_sets} >> {file_tool_params}"
 				"&& source deactivate"
 
+		# Bedtools merge: To also report the strand, you could use the -c and -o operators.
+		# To collapse the p-values into one peak I simply used the mean of bedtools merge. 
+		# It is actually not right to simply use the average to combine p-values, but if 
+		# I use RCAS later on, then it should be enough just to have a score. 
 		rule panpeaker_refine_output:
 			input:
 				PEAKCALLING_OUTDIR + "/robust_peaks.bed"
@@ -68,11 +76,14 @@ if ( control == "yes" ):
 				config["conda_envs"] + "/bedtools.yml"
 			params:
 				bedsort=PEAKCALLING_OUTDIR + "/robust_peaks_sorted.bed",
-				sign=PEAKCALLING_OUTDIR + "/robust_peaks_sorted_significant.bed"
+				sign=PEAKCALLING_OUTDIR + "/robust_peaks_sorted_significant.bed",
+				tmp=PEAKCALLING_OUTDIR + "/robust_peaks_refined_tmp.bed"
 			shell:
 				"bedtools sort -i {input} > {params.bedsort}"
 				"""&& awk '$9<0.05 {{print $0}}' {params.bedsort} > {params.sign}"""
-				"&& bedtools merge -i {params.sign} -s > {output}"
+				"&& bedtools merge -i {params.sign} -s -c 6,9 -o distinct,mean > {params.tmp}"
+				"""&& awk -v OFS="\t" '{{print $1,$2,$3,"peak_"NR,$5,$4}}' {params.tmp} > {output}"""
+				"&& rm {params.tmp}"
 
 	if ( peakcaller == "PureCLIP" ):
 		rule pureclip:
