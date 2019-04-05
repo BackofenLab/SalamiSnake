@@ -201,7 +201,7 @@ if ( PROTOCOL == "FLASH" ):
 	include: config["rules"] + "/Main/mapping.py"
 	include: config["rules"] + "/FLASH/FLASH_postmap_filtering.py"
 	include: config["rules"] + "/FLASH/FLASH_deduplication.py"
-	include: config["rules"] + "/FLASH/FLASH_mapping_quality.py"
+	include: config["rules"] + "/Main/mapping_quality.py"
 	include: config["rules"] + "/FLASH/FLASH_peakcalling.py"
 	include: config["rules"] + "/Main/misc.py"
 	include: config["rules"] + "/Main/motif_detection.py"
@@ -210,7 +210,7 @@ elif ( PROTOCOL == "PARCLIP" ):
 	include: config["rules"] + "/PARCLIP/PARCLIP_preprocessing_singleend.py"
 	include: config["rules"] + "/Main/mapping_singleend.py"
 	include: config["rules"] + "/PARCLIP/PARCLIP_postmap_filtering.py"
-	include: config["rules"] + "/PARCLIP/PARCLIP_mapping_quality.py"
+	include: config["rules"] + "/Main/mapping_quality.py"
 	include: config["rules"] + "/PARCLIP/PARCLIP_peakcalling.py"
 	include: config["rules"] + "/Main/misc.py"
 	include: config["rules"] + "/Main/motif_detection.py"
@@ -220,7 +220,7 @@ elif ( PROTOCOL == "ChIP" ):
 	include: config["rules"] + "/ChIP/ChIP_preprocessing.py"
 	include: config["rules"] + "/Main/mapping.py"
 	include: config["rules"] + "/ChIP/ChIP_postmap_filtering.py"
-	include: config["rules"] + "/ChIP/ChIP_mapping_quality.py"
+	include: config["rules"] + "/Main/mapping_quality.py"
 	include: config["rules"] + "/ChIP/ChIP_peakcalling.py"
 elif ( PROTOCOL == "eCLIP" ):
 	# Preprocessing (without demultiplexing)
@@ -228,7 +228,7 @@ elif ( PROTOCOL == "eCLIP" ):
 	include: config["rules"] + "/Main/mapping.py"
 	include: config["rules"] + "/eCLIP/eCLIP_postmap_filtering.py"
 	include: config["rules"] + "/eCLIP/eCLIP_deduplication.py"
-	include: config["rules"] + "/eCLIP/eCLIP_mapping_quality.py"
+	include: config["rules"] + "/Main/mapping_quality.py"
 	include: config["rules"] + "/eCLIP/eCLIP_peakcalling.py"
 	include: config["rules"] + "/Main/motif_detection.py"
 else:
