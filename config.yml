@@ -258,7 +258,7 @@ extract_cl: &extract_cl ""
 peaks_extend_frontiers: &peaks_extend_frontiers "-header -b 20"
 meme_chip: &meme_chip >-
             -norc -order 1 -group-thresh 0.05 -group-weak 0.0 -filter-thresh 0.05  -meme-mod zoops -meme-minw 5 -meme-maxw 20 -meme-nmotifs 20  
-            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -rna -seed 123
+            -dreme-e 0.05 -dreme-m 20 -spamo-skip -fimo-skip -noecho -rna -seed 123 -centrimo-maxreg 100 -centrimo-local
 fimo: &fimo "--alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000 --qv-thresh --thresh 0.000100 --verbosity 1"
 annotation: &annotation "-s -u"
 rnafold: &rnafold "-p --MEA -d2 --noPS"
