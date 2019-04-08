@@ -16,7 +16,7 @@ if ( control == "yes" ):
 				fa=MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined.fa"
 			threads: 2
 			conda:
-				config["conda_envs"] + "/extract_genomic_dna.yml"			
+				config["conda_envs"] + "/fetch_DNA_sequence.yml"			
 			shell:
 				"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
 				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {input} {GENOME_FASTA}"
@@ -45,13 +45,13 @@ if ( control == "yes" ):
 			input:
 				PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed"
 			output:
-				bed3=MOTIF_DETECTION_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks.bed3",
 				fa=MOTIF_DETECTION_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks.fa"
 			threads: 2
+			conda:
+				config["conda_envs"] + "/fetch_DNA_sequence.yml"			
 			shell:
 				"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
-				"""&& awk '{{ print $1"\t"$2"\t"$3 }}' {input} > {output.bed3} """
-				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {output.bed3} {GENOME_FASTA}"
+				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {input} {GENOME_FASTA}"
 
 		rule meme_chip:
 			input: 
@@ -105,13 +105,13 @@ else:
 			input:
 				PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed"
 			output:
-				bed3=MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_peaks.bed3",
 				fa=MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_peaks.fa"
 			threads: 2
+			conda:
+				config["conda_envs"] + "/fetch_DNA_sequence.yml"			
 			shell:
 				"if [ ! -d {MOTIF_DETECTION_OUTDIR} ]; then mkdir {MOTIF_DETECTION_OUTDIR}; fi"
-				"""&& awk '{{ print $1"\t"$2"\t"$3 }}' {input} > {output.bed3} """
-				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {output.bed3} {GENOME_FASTA}"
+				"&& python " + config["extract_genomic_dna"] + "/fetch_DNA_sequence.py -o {output.fa} {input} {GENOME_FASTA}"
 
 		rule meme_chip:
 			input: 

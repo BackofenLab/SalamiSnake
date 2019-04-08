@@ -2,6 +2,8 @@ name: fetch_DNA_sequence
 channels:
   - bioconda
 dependencies:
+  - argparse
   - python>=3.6*
   - pandas>=0.24.1
   - pysam>=0.15.2
+  - biopython>=1.72

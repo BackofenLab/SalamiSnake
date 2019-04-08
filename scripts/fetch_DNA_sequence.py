@@ -3,12 +3,14 @@ import pysam
 import pandas
 import logging
 
+from Bio.Seq import Seq
+
 ####################
 ##   ARGS INPUT   ##
 ####################
 
 tool_description = """
-The tool takes in a bed3 or interval file and returns
+The tool takes in a bed6 or interval file and returns
 sequences in as fasta.
 By default output is written to source file location.
 Example usage:
@@ -55,7 +57,7 @@ print("[NOTE] Read data")
 
 # your interval data
 file = args.interval_file
-cl_regions = pandas.read_table(file, sep='\t', names=['chrom', 'start', 'stop'])
+cl_regions = pandas.read_table(file, sep='\t', names=['chrom', 'start', 'stop', 'name', 'score', 'strand'])
 
 # link to the reference genome in fasta format
 fastafile = pysam.Fastafile(args.genome_file)
@@ -78,9 +80,12 @@ sequence_file = open(outfile_name, 'w')
 
 # get sequence for coordinates
 for i in range(0,len(cl_regions)):
-    sequence_file.write(">" + str(cl_regions['chrom'][i]) + "_" + str(cl_regions['start'][i]) + "_" +  str(cl_regions['stop'][i]) + "\n")
-    sequence_file.write(fastafile.fetch(str(cl_regions['chrom'][i]), int(cl_regions['start'][i]), int(cl_regions['stop'][i])) + '\n')
-
+    sequence_file.write(">{}_{}_{}_{}_{}\n".format(cl_regions['chrom'][i], str(cl_regions['start'][i]), str(cl_regions['stop'][i]), cl_regions['name'][i], cl_regions['strand'][i]))
+    seq_str = fastafile.fetch(str(cl_regions['chrom'][i]), int(cl_regions['start'][i]), int(cl_regions['stop'][i]))
+    seq = Seq(seq_str)
+    if(cl_regions['strand'][i] == "-"):
+        seq = seq.reverse_complement()
+    sequence_file.write(str(seq) + "\n")
 sequence_file.close()
 
 print("[FINISH]")
