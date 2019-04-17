@@ -52,6 +52,8 @@ if ( control == "yes" ):
 			output:
 				PEAKCALLING_OUTDIR + "/robust_peaks.bed"
 			threads: 10 
+			conda:
+				config["conda_envs"] + "/panpeaker.yml"
 			shell:
 				"if [ ! -d {PEAKCALLING_OUTDIR} ]; then mkdir {PEAKCALLING_OUTDIR}; fi"
 				"&& echo {config[panpeaker]} >> {file_tool_params}"
