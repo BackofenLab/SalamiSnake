@@ -1,7 +1,19 @@
-source('http://bioconductor.org/biocLite.R')
-biocLite('RCAS')
+# source('http://bioconductor.org/biocLite.R')
+# biocLite('RCAS')
+
+source("https://bioconductor.org/biocLite.R")
+biocLite("org.Dm.eg.db")
+
+args = commandArgs(trailingOnly=TRUE)
 
 library(RCAS)
+library(org.Dm.eg.db)
+
+print(args[1])
+print(args[2])
+print(args[3])
+print(args[4])
+print(args[5])
 
 args = commandArgs(trailingOnly = TRUE)
 runReport(
@@ -12,8 +24,8 @@ annotationSummary = TRUE,
 goAnalysis = TRUE,
 msigdbAnalysis = FALSE,
 motifAnalysis = FALSE,
-genomeVersion = args[4],
-outDir = args[5],
+genomeVersion = args[3],
+outDir = args[4],
 printProcessedTables = TRUE,
-sampleN = args[6],
+sampleN = args[5],
 selfContained = TRUE)
