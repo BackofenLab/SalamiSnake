@@ -94,6 +94,58 @@ if ( control == "yes" ):
 		 	shell:
 		 		"fimo {config[fimo]} --oc {output} {input} {GENOME_FASTA}"
 
+		#####################
+		## TARGET ANALYSIS ##
+		#####################
+
+		rule sort_peaks:
+			input:
+				PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed"
+			output:
+				PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended_sorted.bed"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/bedtools.yml"	
+			shell:
+				"bedtools sort -i {input} > {output}"			
+
+		rule robust_peaks_generation:
+			input:
+				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended_sorted.bed", 
+					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
+			output:
+				PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/bedtools.yml"	
+			params:
+				tmp=PEAKCALLING_OUTDIR + "/robust_peaks_refined_tmp.bed"
+			shell:
+				"bedtools merge -i {input} -s -c 6 -o distinct > {params.tmp}"
+				"""&& awk -v OFS="\t" '{{print $1,$2,$3,NR,NR,$4}}' {params.tmp} > {output}"""
+				"&& rm {params.tmp}"		
+		
+		bam_folder = MATEFILTER_OUTDIR
+		bam_suffix = "_sorted"
+		if ( PROTOCOL == "PARCLIP" ):
+			bam_folder = PRE_FOR_UMI_OUTDIR
+			bam_suffix = "_got_umis_unlocalized_check"
+
+		rule stoatydive:
+			input:
+				peaks=PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed",
+				bam=bam_folder + "/{sample}_{replicate}" + bam_suffix + ".bam"
+			output:
+				MOTIF_DETECTION_OUTDIR + "/stoatydive/VC_Distribution_{sample}_{replicate}" + bam_suffix + ".pdf"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/stoatydive.yml"
+			params:
+				output_folder=MOTIF_DETECTION_OUTDIR + "/stoatydive/"
+			shell:
+				"if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
+				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -o {params.output_folder}"	
+
 else:
 
 	if ( peakcaller == "PureCLIP" or peakcaller == "Piranha" ):
