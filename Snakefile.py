@@ -261,6 +261,7 @@ if ( control == "yes" ):
 				#expand(MOTIF_DETECTION_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_meme_chip/meme-chip.html", 
 				#		sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
 				MOTIF_DETECTION_OUTDIR + "/robust_peaks_refined_meme_chip/meme-chip.html"
+				#MOTIF_DETECTION_OUTDIR + "/rcas/rcas_summary.html"
 
 		ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger") + name_generation_samples(RENAMING, SAMPLES[1], REP_NAME_CONTROL, PAIR, ".fastqsanger")
 	
