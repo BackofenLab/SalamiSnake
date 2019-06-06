@@ -100,19 +100,23 @@ if ( control == "yes" ):
 
 		rule sort_peaks:
 			input:
-				PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed"
+				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
+					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
 			output:
-				PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended_sorted.bed"
+				PEAKCALLING_OUTDIR + "/robust_peaks_sorted.bed"
 			threads: 2
 			conda:
 				config["conda_envs"] + "/bedtools.yml"	
+			params:
+				tmp=PEAKCALLING_OUTDIR + "/robust_peaks_refined_tmp.bed"
 			shell:
-				"bedtools sort -i {input} > {output}"			
+				"cat {input} > {params.tmp}"
+				"&& bedtools sort -i {params.tmp} > {output}"
+				"&& rm {params.tmp}"			
 
 		rule robust_peaks_generation:
 			input:
-				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended_sorted.bed", 
-					sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
+				PEAKCALLING_OUTDIR + "/robust_peaks_sorted.bed"
 			output:
 				PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed"
 			threads: 2
@@ -123,7 +127,7 @@ if ( control == "yes" ):
 			shell:
 				"bedtools merge -i {input} -s -c 6 -o distinct > {params.tmp}"
 				"""&& awk -v OFS="\t" '{{print $1,$2,$3,NR,NR,$4}}' {params.tmp} > {output}"""
-				"&& rm {params.tmp}"		
+				"&& rm {params.tmp}"
 		
 		bam_folder = MATEFILTER_OUTDIR
 		bam_suffix = "_sorted"
@@ -134,17 +138,38 @@ if ( control == "yes" ):
 		rule stoatydive:
 			input:
 				peaks=PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed",
-				bam=bam_folder + "/{sample}_{replicate}" + bam_suffix + ".bam"
+				bam=bam_folder + "/{sample}_{replicate}" + bam_suffix + ".bam",
+				genome=GENOME_SIZES
 			output:
-				MOTIF_DETECTION_OUTDIR + "/stoatydive/VC_Distribution_{sample}_{replicate}" + bam_suffix + ".pdf"
+				MOTIF_DETECTION_OUTDIR + "/stoatydive_with_length_norm/VC_Distribution_{sample}_{replicate}" + bam_suffix + ".pdf"
 			threads: 2
 			conda:
 				config["conda_envs"] + "/stoatydive.yml"
 			params:
-				output_folder=MOTIF_DETECTION_OUTDIR + "/stoatydive/"
+				output_folder=MOTIF_DETECTION_OUTDIR + "/stoatydive_with_length_norm/"
 			shell:
-				"if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
-				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -o {params.output_folder}"	
+				"echo {config[stoatydive_para]} >> {file_tool_params}"
+				"&& if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
+				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
+				"{config[stoatydive_para]} -o {params.output_folder}"
+
+		rule stoatydive2:
+			input:
+				peaks=PEAKCALLING_OUTDIR + "/robust_peaks_refined.bed",
+				bam=bam_folder + "/{sample}_{replicate}" + bam_suffix + ".bam",
+				genome=GENOME_SIZES
+			output:
+				MOTIF_DETECTION_OUTDIR + "/stoatydive_wo_length_norm/VC_Distribution_{sample}_{replicate}" + bam_suffix + ".pdf"
+			threads: 2
+			conda:
+				config["conda_envs"] + "/stoatydive.yml"
+			params:
+				output_folder=MOTIF_DETECTION_OUTDIR + "/stoatydive_wo_length_norm/"
+			shell:
+				"echo {config[stoatydive_para2]} >> {file_tool_params}"
+				"&& if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
+				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
+				"{config[stoatydive_para2]} -o {params.output_folder}"
 
 else:
 
