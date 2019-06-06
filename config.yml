@@ -4,14 +4,24 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/PanPeaker/PTBP1"
+sample_data_dir: "/scratch/bi03/heylf/CLIP_Data/U2AF2"
 
 clip_samples:
-  PTBP1_rep1: {r1: "ENCFF019TEQ", r2: "ENCFF689XJE"}
-  PTBP1_rep2: {r1: "ENCFF989UNR", r2: "ENCFF273VIJ"}
+  #PTBP1_rep1: {r1: "ENCFF019TEQ", r2: "ENCFF689XJE"}
+  #PTBP1_rep2: {r1: "ENCFF989UNR", r2: "ENCFF273VIJ"}
+  #RBFOX2_rep1: {r1: "ENCFF172GUS", r2: "ENCFF647KDW"}
+  #RBFOX2_rep2: {r1: "ENCFF591SSP", r2: "ENCFF289OFA"}
+  #SLBP_rep1: {r1: "ENCFF192LYD", r2: "ENCFF929QLP"}
+  #SLBP_rep2: {r1: "ENCFF835QFU", r2: "ENCFF833YXA"}
+  U2AF2_rep1: {r1: "ENCFF565HKG", r2: "ENCFF559BLA"}
+  U2AF2_rep2: {r1: "ENCFF912MAK", r2: "ENCFF440IJI"}
+
 
 control_samples:
-  Input_rep1: {r1: "ENCFF905RDN", r2: "ENCFF960RXN"}
+  #Input_rep1: {r1: "ENCFF905RDN", r2: "ENCFF960RXN"} # PTBP1
+  #Input_rep1: {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"} # RBFOX2
+  #Input_rep1: {r1: "ENCFF494AAJ", r2: "ENCFF296EON"} # SLBP
+  Input_rep1: {r1: "ENCFF156ZDE", r2: "ENCFF939YLN"} # U2AF2
 
 multiplex_setup: {r1: "-", r2: "-"}
 
@@ -21,11 +31,11 @@ control: "yes"
 demultiplexed: "yes"
 
 # Peakcaller
-# peakcaller: "PureCLIP"
+peakcaller: "PureCLIP"
 # peakcaller: "Piranha"
 # peakcaller: "PEAKachu"
 # peakcaller: "MACS2"
-peakcaller: "PanPeaker"
+# peakcaller: "PanPeaker"
 
 # Mapper
 mapper: "STAR"    # recommended for CLIP-Seq
@@ -144,9 +154,9 @@ cutadapt: &cutadapt >-
 # FLASH
 # remove_tail: &remove_tail "13"
 # eCLIP N5
-# remove_tail: &remove_tail "5"
+remove_tail: &remove_tail "5"
 # eCLIP N10
-remove_tail: &remove_tail "10"
+# remove_tail: &remove_tail "10"
 
 ### UMI_TOOLS ###
 # FLASH
@@ -207,18 +217,18 @@ estimate_insert_size: &estimate_insert_size >-
 ####################
 
 ### PURECLIP ###
-# hg19
-# pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+# hg19/hg38
+pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
 # pureclip: &pureclip "-bdw 10 -bdwn 10 -iv 'chr1;chr2;chr3;'"
 # dm6 (small binding regions)
 # pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
 # mm10 
-pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
+# pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
 
 ### PIRANHA ###
 # dm6
 # piranha: &piranha "-s -p 0.05  -b 10 -i 10 -u 10 -d Poisson"
-# hg19
+# hg19/hg38
 piranha: &piranha "-s -p 0.05 -b 50 -i 50 -u 10"
 
 ### PEAKACHU ###
@@ -264,6 +274,8 @@ fimo: &fimo "--alpha 1.000000 --max-stored-scores 100000 --motif-pseudo 0.100000
 annotation: &annotation "-s -u"
 rnafold: &rnafold "-p --MEA -d2 --noPS"
 orientation: &orientation "--sample-size 200000 --mapq 30"
+stoatydive_para: &stoatydive_para "--length_norm --border_penalty --scale_max 10.0 --seed 123"
+stoatydive_para2: &stoatydive_para2 "--border_penalty --seed 123"
 
 ### RCAS ###
 # hg19
