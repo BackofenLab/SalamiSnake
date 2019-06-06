@@ -46,6 +46,7 @@ def fit_nbinom(X, initial_params=None):
             + N*r*np.log(p) \
             + np.sum(X*np.log(1-(p if p < 1 else 1-infinitesimal)))
 
+        #TODO I have put these condition in here to correct for a double scalar error.
         if ( np.isnan(result) ):
             return 0.0
         if ( np.isinf(result) ):
