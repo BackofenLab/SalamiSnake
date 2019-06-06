@@ -167,3 +167,10 @@ stoatydive:
         mem: "h_vmem=10G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+stoatydive2:
+        jobname: "StoatyDive"
+        cores: "smp 2"
+        mem: "h_vmem=10G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
