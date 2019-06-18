@@ -24,7 +24,7 @@ cutadapt_barcode_trimming:
 demultiplex:
         jobname: "Demultiplexing"
         cores: "smp 4"
-        mem: "h_vmem=5G"
+        mem: "h_vmem=10G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
         err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
 
@@ -86,6 +86,13 @@ piranha:
 
 pureclip:
         jobname: "PureCLIP"
+        cores: "smp 10"
+        mem: "h_vmem=4G"
+        out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+        err: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"
+
+panpeaker:
+        jobname: "PanPeaker"
         cores: "smp 10"
         mem: "h_vmem=4G"
         out: "/scratch/bi03/heylf/Snakemake_Cluster_Logs"

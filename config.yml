@@ -4,7 +4,7 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/CLIP_Data/U2AF2"
+sample_data_dir: "/scratch/bi03/heylf/Plamen/KIRO/Kc_cells_FLASH"
 
 clip_samples:
   #PTBP1_rep1: {r1: "ENCFF019TEQ", r2: "ENCFF689XJE"}
@@ -13,22 +13,35 @@ clip_samples:
   #RBFOX2_rep2: {r1: "ENCFF591SSP", r2: "ENCFF289OFA"}
   #SLBP_rep1: {r1: "ENCFF192LYD", r2: "ENCFF929QLP"}
   #SLBP_rep2: {r1: "ENCFF835QFU", r2: "ENCFF833YXA"}
-  U2AF2_rep1: {r1: "ENCFF565HKG", r2: "ENCFF559BLA"}
-  U2AF2_rep2: {r1: "ENCFF912MAK", r2: "ENCFF440IJI"}
-
+  #U2AF2_rep1: {r1: "ENCFF565HKG", r2: "ENCFF559BLA"}
+  #U2AF2_rep2: {r1: "ENCFF912MAK", r2: "ENCFF440IJI"}
+  # CL8
+  #Kiro_rep1: {r1: "Kiro_Cl8_Rb_XL10_rep1", r2: "Kiro_Cl8_Rb_XL10_rep1"}
+  #Kiro_rep2: {r1: "Kiro_Cl8_Rb_XL10_rep2", r2: "Kiro_Cl8_Rb_XL10_rep2"}
+  # Kc
+  Kiro_rep1: {r1: "Kiro_Kc_Rb_XL11_rep1", r2: "Kiro_Kc_Rb_XL11_rep1"}
+  Kiro_rep2: {r1: "Kiro_Kc_Rb_XL11_rep2", r2: "Kiro_Kc_Rb_XL11_rep2"}
 
 control_samples:
   #Input_rep1: {r1: "ENCFF905RDN", r2: "ENCFF960RXN"} # PTBP1
   #Input_rep1: {r1: "ENCFF264UQQ", r2: "ENCFF648TWD"} # RBFOX2
   #Input_rep1: {r1: "ENCFF494AAJ", r2: "ENCFF296EON"} # SLBP
-  Input_rep1: {r1: "ENCFF156ZDE", r2: "ENCFF939YLN"} # U2AF2
+  #Input_rep1: {r1: "ENCFF156ZDE", r2: "ENCFF939YLN"} # U2AF2
+  # Cl8
+  # IgG_rep1: {r1: "IgG_Cl8_Rb_XL10_rep1", r2: "IgG_Cl8_Rb_XL10_rep1"}
+  # IgG_rep2: {r1: "IgG_Cl8_Rb_XL10_rep2", r2: "IgG_Cl8_Rb_XL10_rep2"}
+  # Kc
+  IgG_rep1: {r1: "IgG_Kc_Rb_XL11_rep1", r2: "IgG_Kc_Rb_XL11_rep1"}
+  IgG_rep2: {r1: "IgG_Kc_Rb_XL11_rep2", r2: "IgG_Kc_Rb_XL11_rep2"}  
 
-multiplex_setup: {r1: "-", r2: "-"}
+# Cl8
+# multiplex_setup: {r1: "bbmerged_XL10_S10_R1", r2: "bbmerged_XL10_S10_R2"}
+multiplex_setup: {r1: "bbmerged_XL11_S11_R1", r2: "bbmerged_XL11_S11_R2"}
 
-protocol: "eCLIP"
+protocol: "FLASH"
 paired: "yes"
 control: "yes"
-demultiplexed: "yes"
+demultiplexed: "no"
 
 # Peakcaller
 peakcaller: "PureCLIP"
@@ -46,7 +59,7 @@ mapper: "STAR"    # recommended for CLIP-Seq
 # sample_1  barcode_1
 # sample_2  barcode_2
 # sample_3  barcode_3
-barcodes: ""
+barcodes: "/scratch/bi03/heylf/Plamen/KIRO/Kc_cells_FLASH/barcodes.txt"
 
 # genome directories
 # hg19 
@@ -57,19 +70,19 @@ barcodes: ""
 # genome_sizes: "/hg19_chr_sizes.txt"   # UCSC
 # annotation_gtf: "/Genocode_hg19.gtf"
 # hg38 
-ref_genome_dir: "/scratch/bi03/heylf/genomes/hg38"
-genome_fasta: "/hg38.fa"  # UCSC
-genome_2bit: "/hg38.2bit" # UCSC
-genome_gtf: "/Gencode.v29.all.gtf"    # Gencode
-genome_sizes: "/hg38.chrom.sizes.txt" # UCSC
-annotation_gtf: "/Gencode.v29.all.gtf"
+# ref_genome_dir: "/scratch/bi03/heylf/genomes/hg38"
+# genome_fasta: "/hg38.fa"  # UCSC
+# genome_2bit: "/hg38.2bit" # UCSC
+# genome_gtf: "/Gencode.v29.all.gtf"    # Gencode
+# genome_sizes: "/hg38.chrom.sizes.txt" # UCSC
+# annotation_gtf: "/Gencode.v29.all.gtf"
 # dm6 
-# ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
-# genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
-# genome_2bit: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.2bit"
-# genome_gtf: "/UCSC_dm6.gtf"
-# genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
-# annotation_gtf: "/UCSC_dm6.gtf"
+ref_genome_dir: "/scratch/bi03/heylf/genomes/dm6"
+genome_fasta: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.fa"
+genome_2bit: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.2bit"
+genome_gtf: "/UCSC_dm6.gtf"
+genome_sizes: "/UCSC_edu_goldenPath_dm6_bigZips_dm6.chrom.sizes.txt"
+annotation_gtf: "/UCSC_dm6.gtf"
 # mm10
 # ref_genome_dir: "/scratch/bi03/heylf/genomes/mm10"
 # genome_fasta: "/mm10.fa"   # UCSC
@@ -133,41 +146,43 @@ rules: "rules"
 # cutadapt: &cutadapt "--error-rate=0.1 --times=1 --overlap=5 -m 20 -a TGGAATTCTCGGGTGCCAAGG"
 
 # FLASH
-# cutadapt: &cutadapt >-
-#               --error-rate=0.1 --times=1 --overlap=5 -m 20 
-#               -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG 
-#               -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
-
-# eCLIP
 cutadapt: &cutadapt >-
               --error-rate=0.1 --times=1 --overlap=5 -m 20 
-              -a NNNNNAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT -A AACTTGTAGATCGGA 
-              -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG 
-              -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG 
-              -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG 
-              -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG 
-              -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT
+              -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG 
+              -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+
+# eCLIP
+# cutadapt: &cutadapt >-
+#               --error-rate=0.1 --times=1 --overlap=5 -m 20 
+#               -a NNNNNAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT -A AACTTGTAGATCGGA 
+#               -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG 
+#               -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG 
+#               -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG 
+#               -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG 
+#               -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT
 
 ### REMOVE_TAIL ###
 # arbitrary
 # remove_tail: &remove_tail "0"
 # FLASH
-# remove_tail: &remove_tail "13"
+remove_tail: &remove_tail "13"
 # eCLIP N5
-remove_tail: &remove_tail "5"
+# remove_tail: &remove_tail "5"
 # eCLIP N10
 # remove_tail: &remove_tail "10"
 
 ### UMI_TOOLS ###
-# FLASH
-got_umis_1: &got_umis_1 "-p NNNNNXXXXXXNN"
+# N marks the sequences that will be cut out
+# X marks the sequences that will be left in the reads
+# FLASH NNBBNTTTTTTNN (N = random tag, B = binary replicate barcode, T = multplex experiment barcode)
+got_umis_1: &got_umis_1 "-p NNXXNXXXXXXNN"
 got_umis_2: &got_umis_2 "-p NNNNNN"
 umi_dedup: &umi_dedup "--random-seed 0 --extract-umi-method read_id --method adjacency --edit-distance-threshold 1 --soft-clip-threshold 4 --subset 1.0 --paired"
 
 ### DEMULTIPLEXING ###
 # FLASH
 demultiplex: &demultiplex >-
-              SAME_HEADERS=false BPOS=READ_2 BCLEN=6 C=true ADD=false MM=1 MMD=1 Q=10 QUALITY_FORMAT=Standard XT=0 ZT=0 RCHAR=: GZ=false 
+              SAME_HEADERS=false BPOS=READ_2 BCLEN=8 C=true ADD=false MM=1 MMD=1 Q=10 QUALITY_FORMAT=Standard XT=0 ZT=0 RCHAR=: GZ=false 
               KEEP_UNASSIGNED_READ=false STATS_ONLY=false
 
 ################
@@ -185,9 +200,9 @@ star_all: &star_all >-
     --alignWindowsPerReadNmax '10000' --alignTranscriptsPerWindowNmax '100' --alignTranscriptsPerReadNmax '10000' --alignEndsType EndToEnd  --twopassMode 'Basic' 
     --twopass1readsN '-1' --limitBAMsortRAM '0' --limitOutSJoneRead '1000' --limitOutSJcollapsed '1000000' --limitSjdbInsertNsj '1000000' 
 # long reads 
-star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
+# star_indi: &star_indi "--outFilterScoreMinOverLread '0.66' --outFilterMatchNminOverLread '0.66'"
 # small reads 
-# star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
+star_indi: &star_indi "--outFilterScoreMinOverLread '0.3' --outFilterMatchNminOverLread '0.3'"
 # fragment size does not matter
 star_frag: &star_frag "--alignMatesGapMax '0'"
 # fragment size does matter (for MACS2)
@@ -218,10 +233,10 @@ estimate_insert_size: &estimate_insert_size >-
 
 ### PURECLIP ###
 # hg19/hg38
-pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
+# pureclip: &pureclip "-iv 'chr1;chr2;chr3;'"
 # pureclip: &pureclip "-bdw 10 -bdwn 10 -iv 'chr1;chr2;chr3;'"
 # dm6 (small binding regions)
-# pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
+pureclip: &pureclip "-bdw 5 -bdwn 5 -ld -antp"
 # mm10 
 # pureclip: &pureclip "-bdw 50 -bdwn 50 -antp -ld -iv 'chr1;chr2;chr3;'"
 
