@@ -78,31 +78,41 @@ rule got_umis:
 		"&& echo {config[got_umis_1]} >> {file_tool_params}"
 		"&& umi_tools extract {config[got_umis_1]} -I {input.second} -S {output.second} --read2-in {input.first} --read2-out {output.first} -L {output.log}"
 
+# Convert Binary barcodes nulceotides
+rule create_binary_barcode:
+	input:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed.fastqsanger"
+	output:
+		PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed_bbconverted.fastqsanger"
+	threads: 2
+	shell: 
+		"""cat {input} | paste - - - - | awk -v FS=" " -v OFS=" " '{{bc=substr($3,0,2); rest=substr($3,3,length($3)); gsub("[AG]","A",bc); gsub("[TCU]","C",bc); $3=bc rest; print $1,$2"\t"$3"\t"$4"\t"$5}}' | tr -s "\t" "\n" > {output}"""
+
+# Please use FORCE=true to allow overwrite.
 rule demultiplex:
 	input:
 		first=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r1_trimmed.fastqsanger",
-		second=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed.fastqsanger",
-		barcodes=config["barcodes"]
+		second=PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed_bbconverted.fastqsanger",
+		barcodes=NEW_BARCODE_FILE
 	output:
 		diag=DEMULTI_OUTDIR + "/{sample}_{replicate}_diag.log",
-		files=[DEMULTI_OUTDIR + "/{sample}_{replicate}" + x for x in BARCODE_FILES]
-	threads: 2
+		files=[DEMULTI_OUTDIR + "/{sample}_{replicate}_" + x for x in BARCODE_FILES]
+	threads: 4
 	conda:
 		config["conda_envs"] + "/je_demultiplex.yml"
 	params:
-		outdir=DEMULTI_OUTDIR
+		outdir=DEMULTI_OUTDIR  
 	shell:
 		"if [ ! -d {DEMULTI_OUTDIR} ]; then mkdir {DEMULTI_OUTDIR}; fi "
 		"&& echo {config[demultiplex]} >> {file_tool_params}"
-		"&& je demultiplex F1={input.first} F2={input.second} BARCODE_FILE={input.barcodes} {config[demultiplex]} "
+		"&& je demultiplex FORCE=true F1={input.first} F2={input.second} BARCODE_FILE={input.barcodes} {config[demultiplex]} "
 		"OUTPUT_DIR={params.outdir} BARCODE_DIAG_FILE={output.diag} METRICS_FILE_NAME={params.outdir}/metric.txt"
 
 rule renaming_demultiplex:
 	input:
-		#BARCODE_FILES
 		[DEMULTI_OUTDIR + "/" + MULTIPLEX_SAMPLE_NAME + "_rep1_" + x for x in BARCODE_FILES]
 	output:
 		BARCODE_NEWFILES
 	run:
 		for i in range(0, len(BARCODE_FILES)): 
-			shell("cp " + input[i] + " " + output[i])
+			shell("mv " + input[i] + " " + output[i])

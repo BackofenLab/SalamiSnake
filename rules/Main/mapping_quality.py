@@ -45,6 +45,8 @@ rule compute_gc_bias_plots:
 		"--genome {GENOME_2BIT} --biasPlot {output.plot} --plotFileFormat png"
 
 # for picard please conda install R
+# Swap in /scratch/bi01/heylf/miniconda3/envs/picard/etc/conda/activate.d/java_home.sh the first line
+# with the second line. 
 rule estimate_insert_size:
 	input:
 		DEDUPLICAITON_OUTDIR + "/{sample}_{replicate}.bam"
@@ -218,8 +220,8 @@ else:
 			    	trim=expand(FASTQC_ADAPT_OUTDIR + "/{s}_{r}_{pair}_trimmed.fastqsanger_fastqc.html", s=MULTIPLEX_SAMPLE_NAME, r="rep1", pair=PAIR),
 			    	be_dedup=[expand(FASTQC_BEFORE_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			    		      expand(FASTQC_BEFORE_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
-			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
-			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_got_umis_unlocalized_check_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
+			    	dedup=[expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_sorted_fastqc.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
+			    		   expand(FASTQC_DEDUP_OUTDIR + "/{sample}_{replicate}_sorted_fastqc.html", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)],
 			    	mapping=[expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			    			 expand(MAPPING_OUTDIR + "/{sample}_{replicate}_Log.final.out", sample=SAMPLES[1], replicate=REP_NAME_CONTROL)]
 			    output:
