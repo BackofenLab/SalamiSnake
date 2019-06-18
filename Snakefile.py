@@ -149,6 +149,7 @@ DEMULTIPLEX_SAMPLES = [config["multiplex_setup"]["r1"],  config["multiplex_setup
 MULTIPLEX_SAMPLE_NAME = "multiplexed"
 BARCODE_FILES = []
 BARCODE_NEWFILES = []
+NEW_BARCODE_FILE = config["sample_data_dir"] + "/new_barcode_file.txt"
 
 barcode_sample_dict = {}
 
@@ -157,8 +158,8 @@ if ( demultiplexed == "no" ):
 	print("[NOTE] DEMULTIPLEX: " + demultiplexed)
 	print(DEMULTIPLEX_SAMPLES)
 
-	barcode_file = open(config["barcodes"],"r")
-	new_barcode_file = open(config["sample_data_dir"] + "/new_barcode_file.txt","w")
+	barcode_file = open(config["barcodes"], "r")
+	new_barcode_file = open(NEW_BARCODE_FILE,"w")
 
 	for line in barcode_file:
 		sample = line.split("\t")[0]
@@ -175,17 +176,24 @@ if ( demultiplexed == "no" ):
 		if ( i in barcode_sample_dict ):
 			# BARCODE_FILES.append(DEMULTI_OUTDIR + "/" + i + "_" + barcode_sample_dict[i] + "_1.txt")
 			# BARCODE_FILES.append(DEMULTI_OUTDIR + "/" + i + "_" + barcode_sample_dict[i] + "_2.txt")
-			BARCODE_FILES.append("/" + i + "_" + barcode_sample_dict[i] + "_1.txt")
-			BARCODE_FILES.append("/" + i + "_" + barcode_sample_dict[i] + "_2.txt")
+			BARCODE_FILES.append(i + "_" + barcode_sample_dict[i] + "_1.txt")
+			BARCODE_FILES.append(i + "_" + barcode_sample_dict[i] + "_2.txt")
 		else:
 			print(i)
 			sys.exit("[ERROR] Sample name in config is not coherent with sample name in the barcode file.")
 
+	print("Barcode Files:")
 	print(BARCODE_FILES)
 	BARCODE_NEWFILES = name_generation_samples(DEMULTI_OUTDIR, SAMPLES[0], REP_NAME_CLIP, PAIR, "_trimmed.fastqsanger") 
 	if ( control == "yes" ):
 		BARCODE_NEWFILES = BARCODE_NEWFILES + name_generation_samples(DEMULTI_OUTDIR, SAMPLES[1], REP_NAME_CONTROL, PAIR, "_trimmed.fastqsanger")
 	print(BARCODE_NEWFILES)
+
+	print("INPUT")
+	print([DEMULTI_OUTDIR + "/" + MULTIPLEX_SAMPLE_NAME + "_rep1_" + x for x in BARCODE_FILES])
+	print("OUTPUT")
+	print(BARCODE_NEWFILES)
+
 
 ###########
 ## RULES ##
@@ -272,14 +280,13 @@ if ( control == "yes" ):
 	else:
 		rule all:
 			input: 
+				expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed_bbconverted.fastqsanger", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),
 				expand(DEMULTI_OUTDIR + "/{sample}_{replicate}_diag.log", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),
 				BARCODE_NEWFILES,
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
-				# MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
-				#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 				MULTIQC_OUTDIR + "/multiqc_report.html",
 				expand(PEAKCALLING_OUTDIR + "/{sample_exp}_{replicate_exp}_{sample_ctl}_{replicate_ctl}_peaks_extended.bed",
 						sample_exp=SAMPLES[0], replicate_exp=REP_NAME_CLIP, sample_ctl=SAMPLES[1], replicate_ctl=REP_NAME_CONTROL)
