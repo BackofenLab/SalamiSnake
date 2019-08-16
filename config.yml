@@ -4,7 +4,7 @@
 ######################
 
 # input directory
-sample_data_dir: "/scratch/bi03/heylf/Plamen/KIRO/Kc_cells_FLASH"
+sample_data_dir: "/scratch/bi03/heylf/Plamen/KIRO/Cl8_cells_FLASH"
 
 clip_samples:
   #PTBP1_rep1: {r1: "ENCFF019TEQ", r2: "ENCFF689XJE"}
@@ -16,11 +16,11 @@ clip_samples:
   #U2AF2_rep1: {r1: "ENCFF565HKG", r2: "ENCFF559BLA"}
   #U2AF2_rep2: {r1: "ENCFF912MAK", r2: "ENCFF440IJI"}
   # CL8
-  #Kiro_rep1: {r1: "Kiro_Cl8_Rb_XL10_rep1", r2: "Kiro_Cl8_Rb_XL10_rep1"}
-  #Kiro_rep2: {r1: "Kiro_Cl8_Rb_XL10_rep2", r2: "Kiro_Cl8_Rb_XL10_rep2"}
+  Kiro_rep1: {r1: "Kiro_Cl8_Rb_XL10_rep1", r2: "Kiro_Cl8_Rb_XL10_rep1"}
+  Kiro_rep2: {r1: "Kiro_Cl8_Rb_XL10_rep2", r2: "Kiro_Cl8_Rb_XL10_rep2"}
   # Kc
-  Kiro_rep1: {r1: "Kiro_Kc_Rb_XL11_rep1", r2: "Kiro_Kc_Rb_XL11_rep1"}
-  Kiro_rep2: {r1: "Kiro_Kc_Rb_XL11_rep2", r2: "Kiro_Kc_Rb_XL11_rep2"}
+  #Kiro_rep1: {r1: "Kiro_Kc_Rb_XL11_rep1", r2: "Kiro_Kc_Rb_XL11_rep1"}
+  #Kiro_rep2: {r1: "Kiro_Kc_Rb_XL11_rep2", r2: "Kiro_Kc_Rb_XL11_rep2"}
 
 control_samples:
   #Input_rep1: {r1: "ENCFF905RDN", r2: "ENCFF960RXN"} # PTBP1
@@ -28,15 +28,16 @@ control_samples:
   #Input_rep1: {r1: "ENCFF494AAJ", r2: "ENCFF296EON"} # SLBP
   #Input_rep1: {r1: "ENCFF156ZDE", r2: "ENCFF939YLN"} # U2AF2
   # Cl8
-  # IgG_rep1: {r1: "IgG_Cl8_Rb_XL10_rep1", r2: "IgG_Cl8_Rb_XL10_rep1"}
-  # IgG_rep2: {r1: "IgG_Cl8_Rb_XL10_rep2", r2: "IgG_Cl8_Rb_XL10_rep2"}
+  IgG_rep1: {r1: "IgG_Cl8_Rb_XL10_rep1", r2: "IgG_Cl8_Rb_XL10_rep1"}
+  IgG_rep2: {r1: "IgG_Cl8_Rb_XL10_rep2", r2: "IgG_Cl8_Rb_XL10_rep2"}
   # Kc
-  IgG_rep1: {r1: "IgG_Kc_Rb_XL11_rep1", r2: "IgG_Kc_Rb_XL11_rep1"}
-  IgG_rep2: {r1: "IgG_Kc_Rb_XL11_rep2", r2: "IgG_Kc_Rb_XL11_rep2"}  
+  #IgG_rep1: {r1: "IgG_Kc_Rb_XL11_rep1", r2: "IgG_Kc_Rb_XL11_rep1"}
+  #IgG_rep2: {r1: "IgG_Kc_Rb_XL11_rep2", r2: "IgG_Kc_Rb_XL11_rep2"}  
 
 # Cl8
-# multiplex_setup: {r1: "bbmerged_XL10_S10_R1", r2: "bbmerged_XL10_S10_R2"}
-multiplex_setup: {r1: "bbmerged_XL11_S11_R1", r2: "bbmerged_XL11_S11_R2"}
+multiplex_setup: {r1: "bbmerged_XL10_S10_R1", r2: "bbmerged_XL10_S10_R2"}
+# Kc
+#multiplex_setup: {r1: "bbmerged_XL11_S11_R1", r2: "bbmerged_XL11_S11_R2"}
 
 protocol: "FLASH"
 paired: "yes"
@@ -59,7 +60,7 @@ mapper: "STAR"    # recommended for CLIP-Seq
 # sample_1  barcode_1
 # sample_2  barcode_2
 # sample_3  barcode_3
-barcodes: "/scratch/bi03/heylf/Plamen/KIRO/Kc_cells_FLASH/barcodes.txt"
+barcodes: "/scratch/bi03/heylf/Plamen/KIRO/Cl8_cells_FLASH/barcodes.txt"
 
 # genome directories
 # hg19 
