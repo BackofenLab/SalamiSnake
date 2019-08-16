@@ -171,6 +171,7 @@ if ( demultiplexed == "no" ):
 
 		new_barcode_file.write(MULTIPLEX_SAMPLE_NAME + "_rep1_" + sample + "\t" + str.strip(barcode) + "\n")
 	new_barcode_file.close()
+	barcode_file.close()
 
 	for i in FIRST_READS:
 		if ( i in barcode_sample_dict ):
@@ -187,13 +188,13 @@ if ( demultiplexed == "no" ):
 	BARCODE_NEWFILES = name_generation_samples(DEMULTI_OUTDIR, SAMPLES[0], REP_NAME_CLIP, PAIR, "_trimmed.fastqsanger") 
 	if ( control == "yes" ):
 		BARCODE_NEWFILES = BARCODE_NEWFILES + name_generation_samples(DEMULTI_OUTDIR, SAMPLES[1], REP_NAME_CONTROL, PAIR, "_trimmed.fastqsanger")
+	print("Barcode new Files:")
 	print(BARCODE_NEWFILES)
 
 	print("INPUT")
 	print([DEMULTI_OUTDIR + "/" + MULTIPLEX_SAMPLE_NAME + "_rep1_" + x for x in BARCODE_FILES])
 	print("OUTPUT")
 	print(BARCODE_NEWFILES)
-
 
 ###########
 ## RULES ##
@@ -211,7 +212,6 @@ if ( PROTOCOL == "FLASH" ):
 	include: config["rules"] + "/FLASH/FLASH_deduplication.py"
 	include: config["rules"] + "/Main/mapping_quality.py"
 	include: config["rules"] + "/FLASH/FLASH_peakcalling.py"
-	include: config["rules"] + "/Main/misc.py"
 	include: config["rules"] + "/Main/motif_detection.py"
 elif ( PROTOCOL == "PARCLIP" ):
 	# Preprocessing (without demultiplexing)
@@ -281,7 +281,7 @@ if ( control == "yes" ):
 		rule all:
 			input: 
 				expand(PRE_FOR_UMI_OUTDIR + "/{sample}_{replicate}_r2_trimmed_bbconverted.fastqsanger", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),
-				expand(DEMULTI_OUTDIR + "/{sample}_{replicate}_diag.log", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),
+				expand(DEMULTI_OUTDIR + "/{sample}_{replicate}_diag.log", sample=MULTIPLEX_SAMPLE_NAME, replicate="rep1"),	
 				BARCODE_NEWFILES,
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 				expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam", sample=SAMPLES[1], replicate=REP_NAME_CONTROL),
@@ -301,12 +301,10 @@ else:
 			expand(MAPPING_OUTDIR + "/{sample}_{replicate}.bam.bai", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			MULTIQC_OUTDIR + "/multiqc_report.html",
 			MAPPING_QUALITY_OUTDIR + "/fingerprint_plot.png",
-			#MAPPING_QUALITY_OUTDIR + "/correlating_bam_files_plot.png",
 			expand(PEAKCALLING_OUTDIR + "/{sample}_{replicate}_peaks_extended.bed", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			ROBUSTPEAKS_OUTDIR + "/robust_between_all.bed",
 			expand(MOTIF_DETECTION_OUTDIR + "/{sample}_{replicate}_meme_chip/meme-chip.html", sample=SAMPLES[0], replicate=REP_NAME_CLIP),
 			expand(STRUCTURE_PREDIC_OUTDIR + "/{sample}_{replicate}_structures.txt", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
-			#expand(MOTIF_SEARCH_OUTDIR + "/fimo_meme/{sample}_{replicate}_meme", sample=SAMPLES[0], replicate=REP_NAME_CLIP)
 
 	ALL_NEW_FILE_NAMES = name_generation_samples(RENAMING, SAMPLES[0], REP_NAME_CLIP, PAIR, ".fastqsanger")
 
