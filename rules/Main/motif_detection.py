@@ -150,7 +150,7 @@ if ( control == "yes" ):
 			shell:
 				"echo {config[stoatydive_para]} >> {file_tool_params}"
 				"&& if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
-				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
+				"&& python3 {config[stoatydive]}/bin/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
 				"{config[stoatydive_para]} -o {params.output_folder}"
 
 		rule stoatydive2:
@@ -168,7 +168,7 @@ if ( control == "yes" ):
 			shell:
 				"echo {config[stoatydive_para2]} >> {file_tool_params}"
 				"&& if [ ! -d {params.output_folder} ]; then mkdir {params.output_folder}; fi"
-				"&& python3 {config[stoatydive]}/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
+				"&& python3 {config[stoatydive]}/bin/StoatyDive.py -a {input.peaks} -b {input.bam} -c {input.genome} "
 				"{config[stoatydive_para2]} -o {params.output_folder}"
 
 else:
